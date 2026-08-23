@@ -1,0 +1,80 @@
+---
+title: "TITLE HERE"
+# To put an image behind the title slide, drop it at FIGURES/watermark.png and
+# uncomment these four lines. They are commented out because the scaffold does
+# not create that image, and a YAML path to a file that does not exist makes
+# the render fail rather than warn.
+# title-slide-attributes:
+#   data-background-image: "../../FIGURES/watermark.png"
+#   data-background-size: contain
+#   data-background-opacity: "1"
+author: "Rich Jones"
+date: today
+format:
+  revealjs:
+    theme: white
+    slide-number: true
+    embed-resources: true
+    code-copy: true
+    code-line-numbers: true
+    fig-align: center
+    controls: true
+    controls-layout: bottom-right
+editor: source
+include-in-header:
+  - text: |
+      <style>
+      .reveal .slide-number {
+        top: 1em !important;
+        right: 1em !important;
+        bottom: auto !important;
+        left: auto !important;
+      }
+      .reveal pre {
+        max-height: 850px !important;
+        width: 100% !important;
+        overflow-y: auto !important;
+      }
+      .reveal pre code {
+        max-height: 850px !important;
+        overflow-y: auto !important;
+      }
+      </style>
+---
+
+```{r setup}
+#| include: false
+# Load libraries and environment settings. Analysis code whose output is not
+# meant for the audience can also run here.
+analysis <- "Analysis1"   # rename to this folder's name, same as in the driver
+source(here::here("R", analysis, "000-Libraries.R"))
+source(here::here("R", analysis, "001-Environment-settings.R"))
+```
+
+<!--
+This file lives in R/<Analysis>/ alongside its driver and its own copies of the
+R starters. The ../../ prefix on the watermark above reaches the project root,
+because YAML paths resolve relative to this file and cannot call here::here().
+R code uses here::here() instead, so it does not depend on the working
+directory.
+
+Content slides live in their own .qmd files in this same folder and are pulled
+in here, one per topic, in the order you want them to appear. For example:
+
+  {{< include 031-my-topic.qmd >}}
+  {{< include 032-another-topic.qmd >}}
+
+Each included file uses `##` for a new slide. Delete the placeholder slide
+below once you add real content.
+-->
+
+## Placeholder slide
+
+Replace this with your first content slide, or include a content `.qmd` above.
+
+- One idea per bullet.
+- Keep the argument visible.
+
+---
+
+(fin)

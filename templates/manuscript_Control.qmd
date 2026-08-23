@@ -1,0 +1,46 @@
+---
+title: "TITLE HERE"
+author: "Rich Jones"
+date: today
+format:
+  docx:
+    reference-doc: "../../TEMPLATES/reference_manuscript.docx"
+    toc: false
+    toc-title: "Contents"
+bibliography: ../../bibliography.bib
+link-citations: true
+editor: source
+---
+
+```{r setup}
+#| include: false
+analysis <- "Analysis1"   # rename to this folder's name, same as in the driver
+source(here::here("R", analysis, "000-Libraries.R"))
+source(here::here("R", analysis, "001-Environment-settings.R"))
+```
+
+<!--
+This file lives in R/<Analysis>/ alongside its driver and its own copies of the
+R starters. The ../../ prefixes above reach the project root, because YAML
+paths resolve relative to this file and cannot call here::here(). R code uses
+here::here() instead, so it does not depend on the working directory.
+
+Swap reference-doc for ../../TEMPLATES/reference_proposal.docx or
+../../TEMPLATES/reference_report.docx to render the same source into a different
+document type. Those files are this project's own copies, so restyle them in
+Word to suit the target journal or sponsor. Tables and figures the manuscript
+refers to live in the project's MD/ and FIGURES/ with stable filenames, and both
+folders are shared by every analysis in this project.
+-->
+
+# Introduction
+
+Draft the introduction here.
+
+# Methods
+
+# Results
+
+# Discussion
+
+# References

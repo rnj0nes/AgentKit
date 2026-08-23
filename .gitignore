@@ -1,0 +1,12 @@
+# Source material the writing standard was derived from. Published articles,
+# unpublished grant text, and a study asset inventory. The standard itself
+# quotes what a reader needs, so nothing here is required to understand the
+# method.
+REFERENCES/Jones_Writing_Samples/
+
+# Scratch output from testing new_project.sh. Deleted after each test, ignored
+# in case a test is interrupted.
+_test_scaffold/
+
+# macOS
+.DS_Store
