@@ -641,3 +641,56 @@ Open questions.
   contents are then moved out and the folder deleted, so a migration opens a VS
   Code window on a folder that disappears. Harmless, and confusing the first
   time.
+
+## 2026-08-24
+
+Rewrote the public README from compact label-and-description lists into prose
+that explains the purpose of the contracts, folders, scripts, and copy-at-
+creation model. Retained the two directory trees as reference material. The
+README now also says that agent-generated academic prose is not the intended
+use: for substantive academic writing, the agent should provide an outline or
+critique, while the researcher writes the prose. This is both a view about
+writing as part of thinking and a practical response to the observed detection
+of generated text. The watermark claim remains a general caution rather than a
+verified statement about every model or output.
+
+Checked Positron before documenting it. Positron is built on Code OSS and has
+Posit Assistant, configurable model providers, next-edit suggestions, and
+agentic tools. It has also shipped GitHub Copilot completions. No documentation
+was found showing that either Posit Assistant or a Copilot extension in
+Positron automatically reads `AGENTS.md` or
+`.github/copilot-instructions.md`. The README therefore treats instruction
+loading as unverified and gives a narrow test: ask which instruction files were
+read, then ask for the canonical driver and control-file conventions; also
+confirm workspace modification, driver execution, and reading rendered output.
+
+Added the corresponding RStudio guidance. An RStudio Project belongs in the
+scaffolded project's root, beside `.here`, `AGENTS.md`, and
+`bibliography.bib`, not in `R/`, `R/<Analysis>/`, or an output folder. This
+makes RStudio's working directory agree with the project root used by
+`here::here()`. Keep `.here` even when an `.Rproj` file exists, because the
+former makes the root explicit for R, Quarto, Positron, VS Code, and other
+editors. Corrected the assumption that RStudio has no agent integration:
+current RStudio has optional Posit Assistant and Next Edit Suggestions through
+Posit AI, but its instruction-file behavior is unverified and needs the same
+test.
+
+Prepared a team note for the active `ΨMCA26WG4` project. Team members using
+RStudio should create `ΨMCA26WG4.Rproj` in the project root. The hidden
+`.Rproj.user/` directory is local editor state and belongs in `.gitignore`.
+Dropbox selective sync cannot exclude individual files. Dropbox's ignored-file
+feature can exclude individual files and folders on supported personal accounts,
+but Dropbox documents that it is unavailable for team accounts. If the shared
+account does not support ignored files, local RStudio state cannot be kept
+inside the shared Dropbox folder without syncing; a local Git clone outside
+Dropbox is the clean alternative.
+
+Data handling choices: none. No study data was read or altered from here.
+
+Open questions.
+
+- Run the Positron instruction-loading test in an actual AgentKit project and
+  record which files Posit Assistant or any installed Copilot extension reads.
+- Run the parallel RStudio/Posit Assistant test if Posit AI is enabled.
+- Confirm whether the Dropbox account used for `ΨMCA26WG4` is personal or team
+  managed before giving team members local-ignore instructions.
