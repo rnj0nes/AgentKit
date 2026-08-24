@@ -4,17 +4,103 @@ Shared configuration for the AI agents I use in research. This repository holds 
 
 An agent that does not know a researcher's conventions will invent them (plausibly, and differently in every session). Writing the conventions down once, in files the agent loads before it does anything else, is the whole idea. Everything below is a consequence of taking that seriously.
 
-## What an agent reads
+This README covers, in order: the folders in this repository and in a project it scaffolds; the contract, rule, and log files and what each one says; notes on what every folder is for; how to run the `.sh` and `.py` files; and how to adapt the kit if you are not me.
 
-Two files load in every session.
+## Repository layout
 
-`AGENTS.md` is the coding and analysis contract. It fixes the driver and control file conventions (one driver per analysis, calling one control file, both in the same folder), says where generated output goes, sets the rules for logging a session, and requires that any claim about a source document be grounded in text extracted from that document rather than in the model's prior familiarity with it.
+```
+_AgentKit/
+├── AGENTS.md                        contract: driver/control conventions, invariants, logging, grounding
+├── academic-writing-style.md        contract: writing standard (becomes .github/copilot-instructions.md)
+├── AgentKit_overview.md             background, for an agent maintaining the kit itself
+├── AgentKit_instructions.md         operating rules, for an agent maintaining the kit itself
+├── VS-Code-workflow.md              day-to-day workflow, long form
+├── update-existing-projects.md      how to run migrate_project.sh, and what it moves where
+├── new_project.sh                   scaffolds a new project from the files below
+├── migrate_project.sh               rebuilds a pre-August-2026 project onto the current layout
+├── scrub_reference_docs.py          replaces a reference .docx's text with Lorem Ipsum
+├── .gitignore                       excludes REFERENCES/Jones_Writing_Samples/ and test scratch
+├── README.md                        this file
+├── REFERENCES/
+│   └── Jones_Writing_Samples/       source material for the writing standard; local only, gitignored
+├── RULES_AND_LOGS/
+│   ├── R_Rules.md                   R/Quarto conventions, copied into every project
+│   ├── Mplus_Rules.md               Mplus/MplusAutomation conventions, copied into every project
+│   ├── SESSION_LOGS.md              dated log of work on this kit itself
+│   └── DECISIONS.md                 one-line decision record for this kit itself
+└── templates/
+    ├── CLAUDE.md                    pointer file, copied to every project's CLAUDE.md
+    ├── README.md                    generic project README, copied to every project's README.md
+    ├── copilot-instructions-proposals.md   grant adjunct, copied to .github/ but not auto-loaded
+    ├── manuscript_Control.qmd / manuscript_Driver.R    QMD-to-DOCX starter pair
+    ├── slides_Control.qmd / slides_Driver.R            QMD-to-revealjs starter pair
+    ├── reference_manuscript.docx    pandoc reference doc for manuscripts
+    ├── reference_proposal.docx      pandoc reference doc for proposals
+    ├── reference_report.docx        pandoc reference doc for reports
+    └── R/
+        ├── 000-Libraries.R          installs/loads the R packages every project needs
+        └── 001-Environment-settings.R
+```
 
-`academic-writing-style.md` is the writing standard, and it has three jobs in priority order: be right, be understood, sound like me. Reasoning discipline comes first, because a fluent causal overclaim does more damage than an awkward sentence that names its own assumptions, and because the failures that cost a researcher most (fabricated citations, unsupported synthesis, statistical significance read as scientific importance) are failures of reasoning rather than of style. The voice section, which is measured from about 85,000 words of my published work spanning 24 years (two documents externally verified as human-written, several machine-written passages scored against them), and which states its structural targets as numbers rather than in adjectives any writer would claim to satisfy, governs wherever the measurement disagrees with what I would have said my preferences were.
+## Project layout (what `new_project.sh` builds)
 
-Two files load when the task calls for them. `RULES_AND_LOGS/R_Rules.md` covers R and Quarto conventions (file roles, source order, figure naming and devices, the driver render pattern), and `RULES_AND_LOGS/Mplus_Rules.md` covers running Mplus from R through MplusAutomation. They run to about 600 lines together, so an agent reads whichever one the task calls for before writing code, rather than carrying both through every session.
+Running the script produces this skeleton. It is documented in full in the
+project's own `README.md` (`templates/README.md` here, before it is copied).
 
-## Which tools this targets
+```
+<ProjectName>/
+├── .here                            root marker here::here() needs; never delete
+├── AGENTS.md                        copy of the contract, frozen at creation
+├── CLAUDE.md                        copy of the pointer file
+├── README.md                        copy of the project README
+├── bibliography.bib                 empty; ask your agent to build it from REFERENCES/
+├── .github/
+│   ├── copilot-instructions.md              copy of academic-writing-style.md
+│   └── copilot-instructions-proposals.md    grant adjunct, named explicitly when needed
+├── R/
+│   ├── RDATA/                       flat, shared .rds/.RData storage
+│   ├── MPLUS_OUTPUT/                flat, shared Mplus output
+│   └── Analysis1/                   one folder per analysis; rename this one
+│       ├── 000-Libraries.R
+│       ├── 001-Environment-settings.R
+│       ├── manuscript_Control.qmd / manuscript_Driver.R
+│       └── slides_Control.qmd / slides_Driver.R
+├── Stata/
+│   ├── DTA/
+│   ├── MPLUS_OUTPUT/
+│   └── Analysis1/                   Stata mirror of the R analysis folder
+├── REFERENCES/
+│   └── LLM_OUT/                     pdf2llm output: page-marked text, JSONL, metadata
+├── RENDER/                          driver output; scratch, emptied on every render
+├── REPORTS/                         dated, named copies of finished renders
+├── FIGURES/                         flat, shared generated figures
+├── MD/                              flat, shared generated tables and text snippets
+├── EXCALIDRAW/
+│   └── figure-1.excalidraw.svg
+├── ADMIN/                           agreements, IRB/regulatory mail, signed forms
+├── RULES_AND_LOGS/
+│   ├── R_Rules.md
+│   ├── Mplus_Rules.md
+│   ├── SESSION_LOGS.md              created the first time you say "log this session"
+│   └── DECISIONS.md                 created the first time you say "log this session"
+└── TEMPLATES/
+    └── reference_*.docx             one per output type found in _AgentKit/templates/
+```
+
+## Contracts, rules, and logs
+
+Each file below encodes one decision so an agent does not have to guess it. Two load in every session, two load only when the task calls for them, and the rest exist to point an agent at the first four or to record what has already been decided.
+
+- **`AGENTS.md`** (loads every session). The coding and analysis contract: one driver per analysis, calling one control file, both in the same folder; where generated output goes (`RENDER/` as scratch, `REPORTS/` as the dated, kept copy); the rule that a project uses only relative paths, reached with `here::here()`; the session-logging trigger ("log this session"); and the requirement that any claim about a source document be grounded in text extracted from that document, not in the model's prior familiarity with it.
+- **`academic-writing-style.md`** (loads every session, as each project's `.github/copilot-instructions.md`). The writing standard, in priority order: be right, be understood, sound like me. Reasoning discipline comes first, because a fluent causal overclaim does more damage than an awkward sentence that names its own assumptions. The voice section is measured from about 85,000 words of my published work spanning 24 years, and states its targets as numbers (median sentence length, how often a sentence runs long or short, how often a parenthetical appears) rather than as adjectives any writer would claim to satisfy.
+- **`RULES_AND_LOGS/R_Rules.md`** (loads when the task is R or Quarto). File roles and ownership, source order, figure naming and devices, the driver render pattern that avoids Quarto's directory-emptying `--output-dir`.
+- **`RULES_AND_LOGS/Mplus_Rules.md`** (loads when the task is Mplus). The R-to-Mplus-to-H5 run structure through MplusAutomation, variable-naming truncation gotchas, and how to read Bayes factor scores back into R.
+- **`templates/copilot-instructions-proposals.md`** (named explicitly, not auto-loaded). The grant-writing adjunct. Copilot only auto-loads `copilot-instructions.md` and `AGENTS.md`, so a grant project either appends this file to the writing standard or names it in chat.
+- **`templates/CLAUDE.md`** (read manually by Claude Code and Cowork, which load nothing on their own). A pointer, in order, to `AGENTS.md`, then `.github/copilot-instructions.md`, then `RULES_AND_LOGS/SESSION_LOGS.md` and `DECISIONS.md` if they exist, then the two rule files by task.
+- **`RULES_AND_LOGS/SESSION_LOGS.md`** and **`RULES_AND_LOGS/DECISIONS.md`** (created on request, not shipped with content). Empty in a freshly scaffolded project; the first time you say "log this session," a dated narrative entry goes in the first and a one-line decision goes in the second. In this repository, they hold the build history of the kit itself, and are worth reading if you want the reasoning behind a choice rather than just the choice.
+- **`AgentKit_overview.md`** and **`AgentKit_instructions.md`** (read only by an agent working on this kit, never copied into a project). Background and operating rules for maintaining AgentKit itself, kept separate from the contracts a project actually uses.
+
+## Which tools load these files
 
 Three, and each loads these files differently. A fourth does not work at all.
 
@@ -43,13 +129,24 @@ files at 13,800 and 12,600). A file that loads and silently truncates is worse
 than one that fails to load, because the sections carrying the positive
 requirements and the self-check sit at the end and would be the first to go.
 
-## Project layout
+## Folder notes
 
-`new_project.sh` creates a project folder and copies the current masters into it. Each analysis then lives in its own subfolder of `R/` or `Stata/`, holding everything it needs (driver, control file, child source files, and its own copies of the R starters), so that a project running three analyses keeps three self-contained units rather than one crowded root.
+In this repository:
 
-The output folders sit flat at the project root and are shared by every analysis: `RENDER/` for driver output; `REPORTS/` for dated copies; `FIGURES/` and `MD/` for the assets a report includes. Because they are shared, driver output carries the analysis name as a prefix, which is how `Project1_manuscript_2026-08-17.docx` and `Project2_manuscript_2026-08-17.docx` sit in one folder without collision.
+- **`REFERENCES/Jones_Writing_Samples/`**: the source material the writing standard was measured from (published articles, unpublished grant text, a study asset inventory). Gitignored; not all of it is mine to redistribute, and the standard itself quotes what a reader needs.
+- **`RULES_AND_LOGS/`**: the two coding rule files, plus this kit's own session log and decision record. A project gets its own copy of the same folder, minus the log files, which start empty.
+- **`templates/`**: everything `new_project.sh` copies into a new project (contracts and pointer files aside, which live at the repository root). Add a fourth reference-doc type by dropping `reference_<type>.docx` here; nothing else needs to change, since the script globs for the pattern.
 
-R code reaches the project root through `here::here()`, which resolves against a `.here` marker written at the top of every project, so a driver works from any working directory. YAML in a control file cannot call a function, so those few paths (the pandoc reference document, the bibliography, a slide watermark) are literal and reach the root with `../../`.
+In a scaffolded project, the folders that are not self-explanatory:
+
+- **`R/<Analysis>/`** and **`Stata/<Analysis>/`**: one self-contained folder per analysis (driver, control file, child files, its own copies of the R starters). Add a second analysis as a sibling folder; do not put two analyses' drivers in one folder.
+- **`RENDER/`**: scratch. Quarto empties whatever `--output-dir` it is given before writing, so nothing renders straight to `REPORTS/`; the driver renders here, then moves and copies. Never read from it as a stable location and never write to it by hand.
+- **`REPORTS/`**: the kept output, one dated file per render, named with the analysis prefix so two analyses sharing this flat folder never collide.
+- **`FIGURES/`** and **`MD/`**: generated assets a report includes, flat and shared the same way.
+- **`REFERENCES/`**: source material only, nothing else. Run `pdf2llm` on a new PDF to populate `REFERENCES/LLM_OUT/`, which the grounding rule in `AGENTS.md` reads from.
+- **`ADMIN/`**: the project's administrative record (data use agreements, IRB correspondence, signed forms). An agent reads a file here on request but never treats it as source material and never quotes it into a document unasked, because it carries other people's names and confidentiality terms.
+- **`TEMPLATES/`**: this project's pandoc reference docs. Working files, restyle them in Word to match a journal or sponsor; run `scrub_reference_docs.py` before sharing the project if you rebuilt one from a real manuscript.
+- **`.here`**: an empty sentinel file. Its only job is to give `here::here()` something to resolve against, so every driver finds the project root regardless of the working directory it was launched from. Deleting it does not raise an error; it just makes every path resolve somewhere else.
 
 ## How it is put together
 
@@ -62,6 +159,36 @@ R code reaches the project root through `here::here()`, which resolves against a
 **Some tasks suspend the standard.** When I ask for an outline I intend to write the prose myself, and any phrasing the agent supplies is phrasing I will absorb without noticing, so the outlining mode turns off the phrase banks and the sentence targets and requires fragments (noun phrases, verb stems) that cannot be pasted into a document. Reasoning discipline stays on, as does the requirement to carry citations, verbatim numbers, and marked gaps (the facts I would otherwise have to look up again).
 
 **Behavior is confirmed by running.** Reading a script confirms what it intends. Running it and reading the result back confirms what it does, which is a different question, and the gap between them is where a scaffold copies files with correct names and empty contents, or a path scheme resolves everywhere except where it should (silently, because a fallback is not an error).
+
+## Using the scripts
+
+All three are shell or Python, run from a terminal. None of them touches anything outside the project folder you name.
+
+**`new_project.sh`** scaffolds a new project. One-time setup: open the script and edit the `AGENT_KIT` variable near the top to point at wherever you keep your own clone, `chmod +x new_project.sh`, and put it on your `PATH`. After that:
+
+```zsh
+new_project.sh RethinkingClassification
+new_project.sh RethinkingClassification ~/Library/CloudStorage/Dropbox/Work
+```
+
+The first form creates the project inside the current directory; the second takes an explicit parent directory. The script refuses to run if the target folder already exists, and it prints what it copied and what still needs a human (renaming `Analysis1`, adding a bibliography) at the end. If VS Code's `code` command is on your `PATH`, it opens the new folder automatically.
+
+**`migrate_project.sh`** rebuilds a project made before the August 2026 restructure onto the current layout, without ever renaming or replacing the project folder (renaming a folder shared through Dropbox breaks the share). Run it from the project's parent directory:
+
+```zsh
+migrate_project.sh HCAP25
+migrate_project.sh HCAP25 ~/Library/CloudStorage/Dropbox/Work
+```
+
+It backs the project up to a sibling folder first, verifies the backup by file count and byte total, and asks for confirmation before doing anything irreversible. Read `update-existing-projects.md` before running it once, since it covers what moves where and the one driver setting (`--output-dir`) that can destroy finished work if left in place. It refuses to run against a project that has no `AGENTS.md`, or one that is already on the current layout.
+
+**`scrub_reference_docs.py`** replaces the visible text of a pandoc reference `.docx` with Lorem Ipsum, and clears its document properties, while leaving the parts pandoc actually reads (`styles.xml`, `numbering.xml`, `settings.xml`, the theme) byte-identical:
+
+```zsh
+python3 scrub_reference_docs.py TEMPLATES/reference_manuscript.docx TEMPLATES/reference_manuscript_scrubbed.docx
+```
+
+Run it on any reference document you built by restyling a real manuscript in Word, before that document goes into a public or shared repository. A reference doc built this way carries the source manuscript's text, its citation keys, and every DOI it cited, invisibly, and pandoc's ignoring the body at render time does not stop the file itself from containing it.
 
 ## What is not here
 
@@ -89,11 +216,25 @@ https://github.com/rnj0nes/pdf2llm (MIT). It needs Poppler and python3, with
 `ocrmypdf`, `tesseract`, and pandoc for scanned documents. Everything except the
 grounding workflow works without it.
 
-## Adapting it
+## Making this your own
 
 `AgentKit_overview.md` gives the background, `AgentKit_instructions.md` gives the rules for maintaining the kit, and `VS-Code-workflow.md` walks through the day-to-day cycle at length. `RULES_AND_LOGS/SESSION_LOGS.md` and `RULES_AND_LOGS/DECISIONS.md` hold the reasoning behind each choice (in more detail than this file, and in the order the choices were actually made).
 
-To use it, replace the contents of `AGENTS.md` and `academic-writing-style.md` with your own conventions, restyle the reference documents in Word to match your journals, and point the `AGENT_KIT` variable in `new_project.sh` at your copy. Run `scrub_reference_docs.py` over any reference document you build from one of your own manuscripts before committing it. What should transfer is the structure: two always-read contracts; rule files read when the task calls for them; a scaffold that installs both; and a written record of the decisions. My ban list and my sentence length distribution will not transfer, and should not.
+What should transfer to your own copy is the structure, not the content: two always-read contracts, rule files read when the task calls for them, a scaffold that installs both, and a written record of decisions. Nothing about my ban list or my sentence-length targets should survive into yours.
+
+**Change the coding rules.** Rewrite `AGENTS.md` in place: your own driver/control conventions if they differ, your own folder names if you want different ones, and the Stata binary path near the bottom, which is machine specific and currently mine. Edit `RULES_AND_LOGS/R_Rules.md` and `RULES_AND_LOGS/Mplus_Rules.md` for your own file-naming and modeling conventions, or delete either if you never use R/Quarto or Mplus.
+
+**Change the writing rules.** Replace `academic-writing-style.md` wholesale. Mine is measured from my own published work; write yours from a sample of your own, or state stylistic preferences directly if you would rather not measure. Whatever you put there becomes every project's `.github/copilot-instructions.md` on the next scaffold.
+
+**Change the document templates.** Restyle `templates/reference_*.docx` in Word to match the journals or sponsors you actually submit to. If you build one by opening a real manuscript and stripping the text, run `scrub_reference_docs.py` over it before it goes anywhere near a shared or public repository.
+
+**Point the scaffold at your own copy.** Edit the `AGENT_KIT` variable near the top of `new_project.sh` (and `migrate_project.sh`, which calls it) to the path where you keep your clone.
+
+**Running it on Windows.** Both scripts declare a zsh shebang, and `migrate_project.sh` is deliberately written in the portable POSIX subset, so both also run under bash. Neither runs under a native Windows shell (PowerShell or cmd). On Windows, install WSL and run the scripts from its Linux shell, or use Git Bash if it has enough of a POSIX environment for `find`, `cp -R`, and `wc`. R, Quarto, and pandoc themselves are cross-platform and need no such workaround; only these two shell scripts do. `scrub_reference_docs.py` is plain Python 3 and runs unmodified anywhere Python does.
+
+**If you use Stata or Mplus**, update the executable path in your copy of `AGENTS.md`; both are hardcoded to a local install location that will not exist on another machine.
+
+**If you use `pdf2llm`** for the reference-grounding workflow, it is a separate repository with its own dependencies (Poppler, python3, and for scanned documents `ocrmypdf`, `tesseract`, and pandoc); nothing else here requires it.
 
 ## Status
 
