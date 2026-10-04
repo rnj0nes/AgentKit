@@ -694,3 +694,186 @@ Open questions.
 - Run the parallel RStudio/Posit Assistant test if Posit AI is enabled.
 - Confirm whether the Dropbox account used for `ΨMCA26WG4` is personal or team
   managed before giving team members local-ignore instructions.
+
+## 2026-09-05
+
+Added the LibreOffice DOCX re-save. Word opens Quarto's DOCX output behind the
+warning "Word found unreadable content" whenever the document holds flextable
+tables. Clicking Yes works, but Word opens a recovered copy named "Document 1",
+so the original filename is lost. Rich had already tried and abandoned fixing
+this through flextable formatting. LibreOffice opens the same file with no
+warning, so the fix re-encodes the file rather than changing the tables.
+
+The design changed twice during the session. What follows describes where it
+landed. The two reversals are recorded at the end, because both were Rich's
+calls and both are worth not relitigating.
+
+### What was built
+
+`templates/R/002-Word-safe-docx.R` defines `word_safe_docx(input, output)`. It
+finds LibreOffice in the macOS application bundle, converts through the Word
+2010-365 filter into a temporary folder, verifies the result is a readable
+DOCX, and copies it to the output path. It returns TRUE when it converted the
+file and FALSE when it fell back to copying it unchanged.
+
+LibreOffice is optional. When it is missing, or present but failing, the
+function copies the file, prints a note, and returns FALSE. A render never
+fails on this account. The two cases print different notes and only the failure
+raises an R warning, because an absent LibreOffice is ordinary and a broken one
+is not. Passing `fallback = FALSE` makes any problem an error, and the command
+line form uses that, since its job is to answer whether conversion works on a
+given machine.
+
+`manuscript_Driver.R` sources the helper and calls
+`converted <- word_safe_docx(flat, dated, quiet = TRUE)` in place of
+`file.copy(flat, dated)`. Its closing line says whether the file was re-saved
+or copied unconverted. `RENDER/` keeps Quarto's own output, which leaves the
+raw build available when a table looks wrong after the round trip.
+`new_project.sh` copies the helper into each analysis folder. `R_Rules.md`
+documents the change as a new section 7.2 and as a DOCX variant of step 3 in
+section 10.
+
+`add_word_safe_docx.sh` brings an existing project up to this. It copies the
+helper into every analysis folder, then patches each DOCX driver by matching
+the two statements it replaces, `file.copy(flat, dated, overwrite = TRUE)` and
+the closing `cat()`, each as a whole statement at the left margin. A driver
+holding that call zero times or more than once is left alone, because the
+script cannot tell which copy to change. A driver whose closing message was
+rewritten gets the call patched plus a note that the message may no longer read
+true. It also upgrades a driver on the superseded pattern below, backs up every
+driver it touches, ignores slide drivers, changes no rule files, reports
+whether LibreOffice is installed without requiring it, and does nothing the
+second time it runs. Its argument is a path defaulting to the current folder,
+unlike `migrate_project.sh`, which takes a project name plus a parent
+directory and cannot run from inside the project it rebuilds.
+
+### Three mechanics that cost time
+
+R sets `LD_LIBRARY_PATH` to its own library directories. LibreOffice inherits
+it, loads R's libraries instead of its own, and dies before converting
+anything. The fix blanks that variable for the child process only.
+
+LibreOffice writes into `--outdir` under the input's own basename and refuses
+to overwrite its own input, so the temporary folder is what allows a dated
+output name.
+
+`soffice` exits zero even when it writes nothing, so the script checks that the
+output is a zip holding `word/document.xml` rather than trusting the exit
+status.
+
+### Two reversals, both Rich's calls
+
+The first version stopped the render on any conversion failure, so that a DOCX
+in `REPORTS/` had either been through LibreOffice or the driver had halted.
+Rich reversed this on the grounds that the kit is published for other people
+and someone adopting it may not have LibreOffice. Requiring a second
+application to render a document costs more adopters than the Word prompt
+costs. Do not reintroduce the dependency.
+
+The first version of `add_word_safe_docx.sh` matched the driver's whole closing
+block, twelve lines including comments. Rich ran it on a real project and its
+`report_Driver.R` in `Munge_ADAMS` was reported as drifted. The driver was
+fine. It carries its own header and lacks the template's comment above
+`reports_dir`, so the match failed on a comment rather than on anything that
+mattered. His drivers are hand-written, so a whole-block match would have left
+the script printing instructions instead of doing work. The lesson generalizes:
+a script that edits his files should match the statements it replaces, not the
+prose around them.
+
+### Testing
+
+The R helper was exercised on all four paths: successful conversion, missing
+LibreOffice, LibreOffice present but failing, and the strict command line form.
+
+The shell script was run against a scratch project holding a copy of the real
+`Munge_ADAMS` driver, the superseded pattern under a custom header, a driver
+with its own closing message, a folder holding only a slides driver, and a
+driver carrying the copy statement twice. Confirmed that a rerun reports all of
+them as current, that the patched files parse, and that the script behaves when
+LibreOffice is removed from the PATH and when pointed at a folder that is not
+an AgentKit project. Scratch output deleted.
+
+### Open
+
+The driver render pattern has now been run end to end against a real document
+and works, which closes the item open since 17 August. Rich also confirmed that
+a converted DOCX opens in Word without the recovery prompt.
+
+Whether the conversion preserves the body styles inherited from
+`reference_manuscript.docx` across a long manuscript is still unverified.
+`RENDER/` holds Quarto's untouched build, which is what to compare against if
+something looks wrong.
+
+`add_word_safe_docx.sh` copies the helper into every analysis folder that holds
+any driver, including a folder holding only a slides driver, where nothing uses
+it. Harmless, and unresolved.
+
+## 2026-10-04
+
+Closed the `DATA/` question left open on 22 August. The kit had no stated home
+for data a project receives. Three files gave partial and conflicting signals:
+`R/RDATA/` was described as storage but ruled for outputs, `Stata/DTA/` appeared
+only in a commented path example, and `AGENTS.md` sent "raw" material to
+`REFERENCES/`, which could be read as raw data. FHP2026WG4 had already worked
+around the gap with a root `DATA/` folder.
+
+### What was decided
+
+A root `DATA/` folder with two subfolders. `DATA/SOURCE/` holds data as
+received and is read-only to agents and to any code they write. `DATA/DERIVED/`
+holds datasets the project builds and keeps for reuse or sharing. `R/RDATA/`
+and `Stata/DTA/` keep their role as interim working storage that any rerun may
+replace.
+
+The line between `DERIVED/` and the interim folders is intent, which an agent
+cannot test. So a file goes to `DERIVED/` only when Rich says so, for that file
+or by naming a driver whose job is to produce reusable data. `DERIVED/` files
+are built only from `SOURCE/` or `DERIVED/`, never from interim files, so a kept
+dataset never depends on something a rerun may delete. Agents may add files to
+`DERIVED/` but ask before overwriting or deleting one.
+
+`DATA/DERIVED/README.md` is a manifest: file, driver, inputs, last built. The
+duty to update it is tied to writing or changing a driver that writes there,
+not only to writing the file, because Rich usually runs the driver himself and
+the agent never sees the file appear.
+
+### Approaches considered and dropped
+
+A single read-only `DATA/` folder, with derived files sent to `R/RDATA/` or
+`Stata/DTA/`. Dropped because FHP2026WG4 writes one dataset as `.rds`, `.dta`,
+and `.sav`, and the `.sav` copies had no home in either tree.
+
+Narrowing the read-only rule to the agent's own file operations, so a script
+Rich runs could write into `DATA/`. Dropped because it blurs what the provider
+sent with what the project made, which is the reason to have the folder.
+
+### What changed
+
+`AGENTS.md` (new `DATA/` rules; `REFERENCES/` now says reference documents
+only), `R_Rules.md`, `templates/R/001-Environment-settings.R` (`path_source`,
+`path_derived`; only `path_derived` is auto-created), `new_project.sh` (creates
+both subfolders and a starter manifest), `migrate_project.sh` (carries `DATA/`
+over unchanged), `update-existing-projects.md`, `README.md`,
+`templates/README.md`, and `VS-Code-workflow.md` (new section 1.5 DATA; later
+sections renumbered 1.6 to 1.9).
+
+### Testing
+
+Ran a copy of `new_project.sh` into a scratch folder and confirmed it builds
+`DATA/SOURCE/`, `DATA/DERIVED/`, and the manifest. Both scripts pass `bash -n`.
+The R settings file was not run, because R is not available in the shell used.
+Scratch output deleted.
+
+### Open
+
+Existing projects carry frozen copies of the contract and do not have the new
+rules. FHP2026WG4 needs its `DATA/` contents sorted into `SOURCE/` and
+`DERIVED/` and its `here::here("DATA", ...)` paths updated. That is a separate
+task.
+
+Not settled: what the kit says about data that a data use agreement keeps out
+of Dropbox entirely.
+
+`DECISIONS.md` holds three 2026-09-05 entries twice. Not yet cleaned up.
+
+Nothing from this session is committed.

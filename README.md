@@ -19,6 +19,7 @@ _AgentKit/
 ├── new_project.sh                   scaffolds a new project from the files below
 ├── migrate_project.sh               rebuilds a pre-August-2026 project onto the current layout
 ├── scrub_reference_docs.py          replaces a reference .docx's text with Lorem Ipsum
+├── add_word_safe_docx.sh            adds the LibreOffice DOCX re-save to an existing project
 ├── .gitignore                       excludes REFERENCES/Jones_Writing_Samples/ and test scratch
 ├── README.md                        this file
 ├── REFERENCES/
@@ -39,7 +40,8 @@ _AgentKit/
     ├── reference_report.docx        pandoc reference doc for reports
     └── R/
         ├── 000-Libraries.R          installs/loads the R packages every project needs
-        └── 001-Environment-settings.R
+        ├── 001-Environment-settings.R
+        └── 002-Word-safe-docx.R      re-saves a rendered .docx through LibreOffice
 ```
 
 ## Project layout (what `new_project.sh` builds)
@@ -63,6 +65,7 @@ project's own `README.md` (`templates/README.md` here, before it is copied).
 │   └── Analysis1/                   one folder per analysis; rename this one
 │       ├── 000-Libraries.R
 │       ├── 001-Environment-settings.R
+│       ├── 002-Word-safe-docx.R
 │       ├── manuscript_Control.qmd / manuscript_Driver.R
 │       └── slides_Control.qmd / slides_Driver.R
 ├── Stata/
@@ -78,6 +81,9 @@ project's own `README.md` (`templates/README.md` here, before it is copied).
 ├── EXCALIDRAW/
 │   └── figure-1.excalidraw.svg
 ├── ADMIN/                           agreements, IRB/regulatory mail, signed forms
+├── DATA/
+│   ├── SOURCE/                      data as received; agents never write here
+│   └── DERIVED/                     kept, reusable datasets; README.md is the manifest
 ├── RULES_AND_LOGS/
 │   ├── R_Rules.md
 │   ├── Mplus_Rules.md
@@ -175,6 +181,8 @@ The analysis folders in a scaffolded project are self-contained. `R/<Analysis>/`
 
 `REFERENCES/` is for source material and nothing else. When a PDF is relevant to the analysis or writing, `pdf2llm` creates page-marked text, JSONL, and provenance information under `REFERENCES/LLM_OUT/`; the grounding rules read those files rather than the PDF itself (see [https://github.com/rnj0nes/pdf2llm](https://github.com/rnj0nes/pdf2llm)). `ADMIN/` is deliberately separate. It holds data-use agreements, IRB and regulatory correspondence, sponsor and collaborator email, and signed forms. An agent may read one of those files when asked, but it does not use `ADMIN/` as literature or carry names and confidential details from it into a draft unless the user requests that directly.
 
+`DATA/` holds the datasets, and it separates three kinds of file. `DATA/SOURCE/` holds data exactly as it arrived from a provider or collaborator. Agents read it and never write to it, so the project always keeps an untouched copy of what it received. `DATA/DERIVED/` holds datasets the project builds and keeps, either for later analyses or to share. A file goes there only when the user says so, it is built only from `SOURCE/` or other `DERIVED/` files, and its row in `DATA/DERIVED/README.md` names the driver that rebuilds it. `R/RDATA/` and `Stata/DTA/` hold interim working files that any rerun may replace. For example, a cleaned analytic file that a co-author will receive belongs in `DERIVED/`, while a temporary merge used only within an ongoing analysis belongs in `R/RDATA/`. The driver that builds the kept file must read its inputs from `SOURCE/` or `DERIVED/`, not from that temporary merge.
+
 `TEMPLATES/` contains the reference documents that pandoc uses for DOCX styles. They are working files, so each project can restyle its own copy to match a journal or sponsor. A reference document built by opening a real manuscript in Word carries the manuscript text and metadata inside the `.docx`, even when the displayed body has been changed. Run `scrub_reference_docs.py` before sharing such a file. Finally, `.here` is an empty root marker for the R `here` package. It is intentionally boring, but it matters: without it, `here::here()` falls back to the working directory and a driver can place every file somewhere other than the project it was meant to run.
 
 ## How it is put together
@@ -191,7 +199,7 @@ The analysis folders in a scaffolded project are self-contained. `R/<Analysis>/`
 
 ## Using the scripts
 
-The scripts do different jobs, and it is useful to keep their scope clear. `new_project.sh` starts a new project from the current masters. `migrate_project.sh` changes the layout of an existing, older AgentKit project. `scrub_reference_docs.py` removes hidden text and metadata from a reference document. None is an update mechanism for every project you have ever made; projects own copies of the masters, and that choice is deliberate.
+The scripts do different jobs, and it is useful to keep their scope clear. `new_project.sh` starts a new project from the current masters. `migrate_project.sh` changes the layout of an existing, older AgentKit project. `scrub_reference_docs.py` removes hidden text and metadata from a reference document. `add_word_safe_docx.sh` adds one specific change to an existing project. None is an update mechanism for every project you have ever made; projects own copies of the masters, and that choice is deliberate.
 
 `new_project.sh` scaffolds a new project. Before its first use, edit the `AGENT_KIT` variable near the top to point to your copy of this repository, make the script executable with `chmod +x new_project.sh`, and put it on your `PATH` if you want to invoke it from anywhere. Then run either of these commands:
 
@@ -210,6 +218,20 @@ migrate_project.sh HCAP25 ~/Library/CloudStorage/Dropbox/Work
 ```
 
 The script first makes a sibling backup, verifies that backup by file count and byte total, and asks for confirmation before it empties the original folder. `update-existing-projects.md` describes what moves where and the one driver setting, `--output-dir`, that can destroy finished work if it remains in an old driver. The migration script refuses a folder that lacks `AGENTS.md`, because a non-AgentKit project should be scaffolded rather than rebuilt, and it refuses a project already on the current layout.
+
+`add_word_safe_docx.sh` adds the LibreOffice DOCX re-save to a project that already exists. Word reports Quarto's DOCX output as damaged whenever the document holds flextable tables, then opens a recovered copy named "Document 1" and loses the filename. Current projects avoid this because `manuscript_Driver.R` writes `REPORTS/` through LibreOffice rather than copying, and this script brings an older project up to that pattern:
+
+```zsh
+add_word_safe_docx.sh                                  # from inside the project
+add_word_safe_docx.sh MyProject                        # from the parent folder
+add_word_safe_docx.sh ~/Library/CloudStorage/Dropbox/Work/MyProject
+```
+
+Its argument is a path and it defaults to the current folder, so running it inside a project needs no argument at all. This differs from `migrate_project.sh`, which takes a project name plus an optional parent directory and therefore cannot be run from inside the project it rebuilds.
+
+It copies `002-Word-safe-docx.R` into every analysis folder, then patches each DOCX driver. It matches the two statements it replaces, the `file.copy(flat, dated, overwrite = TRUE)` call and the closing `cat()`, rather than the surrounding block, because a real driver carries its own header and comments. A driver that does not hold that call exactly once is reported and left alone with the replacement text printed for you to place by hand. A driver whose closing message you rewrote still gets the call patched, and the script tells you the message may no longer read true. Every driver it touches is backed up to `<name>.bak` first, slide drivers are ignored, rule files are not touched, and running it twice changes nothing the second time. It needs `python3` for the patch.
+
+LibreOffice is optional throughout. The script reports whether it found LibreOffice but never requires it, and a project rendering on a machine without it gets the dated DOCX plus a note explaining what the conversion would have fixed. Nothing has to change when LibreOffice is installed later.
 
 `scrub_reference_docs.py` replaces the visible text in a pandoc reference `.docx` with Lorem Ipsum and clears its document properties, while leaving the parts pandoc reads for formatting (`styles.xml`, `numbering.xml`, `settings.xml`, and the theme) byte-identical:
 
@@ -234,6 +256,17 @@ every path in every driver resolves through it and a project without its `.here`
 marker will silently resolve them all somewhere else. `R/000-Libraries.R`
 installs the R packages it needs on first run (`here`, `tidyverse`, `knitr`,
 `kableExtra`, `quarto`), so R itself is the only piece you place by hand.
+
+LibreOffice is optional, and worth having if you render DOCX documents that
+contain tables. Word reports Quarto's DOCX output as damaged whenever the
+document holds a flextable table, then opens a recovered copy named
+"Document 1" and loses your filename. The document is not corrupt. Word reads
+part of what Quarto writes more strictly than other programs do, and re-saving
+the file through LibreOffice produces a version Word opens directly, which is
+what `R/<Analysis>/002-Word-safe-docx.R` does. Without LibreOffice the driver
+copies the file unchanged, still writes the dated document to `REPORTS/`, and
+prints a note saying what the conversion would have fixed. No render ever fails
+for want of it, and installing it later needs no change to any project.
 
 Stata and Mplus are needed only by the workflows that use them, and the Stata
 binary path in `AGENTS.md` is machine specific.
@@ -260,4 +293,4 @@ Finally, `pdf2llm` is separate from AgentKit. It supplies the page-marked extrac
 
 ## Status
 
-Working infrastructure, in active use, not a finished product. The session log names what is untested at any given moment (at the time of writing, the driver render pattern, which has been verified as correctly installed but not yet run against a real document), and there is usually something.
+Working infrastructure, in active use, not a finished product. The session log names what is untested at any given moment (at the time of writing, whether the LibreOffice DOCX re-save preserves a reference document's styles across a long manuscript), and there is usually something.

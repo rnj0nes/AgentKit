@@ -68,7 +68,7 @@ place, the folder is still never removed, and the script exits non-zero.
 | root `reference_*.docx` | `TEMPLATES/`, overwriting the fresh copies |
 | `REFERENCES/SESSION_LOGS.md`, `DECISIONS.md` | `RULES_AND_LOGS/` |
 | `REFERENCES/` PDFs and `LLM_OUT/` | `REFERENCES/`, unchanged |
-| `FIGURES/`, `MD/`, `EXCALIDRAW/`, `REPORTS/`, `ADMIN/` | same names, unchanged |
+| `FIGURES/`, `MD/`, `EXCALIDRAW/`, `REPORTS/`, `ADMIN/`, `DATA/` (with its subfolders) | same names, unchanged |
 | `R/RDATA/`, `R/MPLUS_OUTPUT/`, `Stata/DTA/` | same names, unchanged |
 | `bibliography.bib`, `*.rproj` | project root |
 | anything else | its old relative path, and listed in the summary |

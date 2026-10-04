@@ -22,8 +22,9 @@ style and is always in force.
   above, which they do not read automatically the way VS Code Copilot does.
 - `R/<Analysis>/`: one folder per analysis, holding its driver, its control
   file, its child `.qmd` files, and its own copies of the R starters
-  (`000-Libraries.R` and `001-Environment-settings.R`, which load first). Add a
-  second analysis as a sibling folder. `Stata/<Analysis>/` mirrors this.
+  (`000-Libraries.R` and `001-Environment-settings.R`, which load first, and
+  `002-Word-safe-docx.R`, which the manuscript driver sources at the end). Add
+  a second analysis as a sibling folder. `Stata/<Analysis>/` mirrors this.
 - `TEMPLATES/`: this project's pandoc reference docs, one per output type.
   They are working files, so restyle them in Word to suit the journal or
   sponsor. If you rebuild one starting from a real manuscript, it will carry
@@ -43,6 +44,13 @@ style and is always in force.
   you say "log this session".
 - `MD/`, `FIGURES/`, `EXCALIDRAW/`: generated tables, figures, and diagrams,
   flat and shared across analyses.
+- `DATA/SOURCE/`: data as you received it. Your agent reads these files and
+  never changes them, so you always keep an untouched copy.
+- `DATA/DERIVED/`: datasets the project builds and keeps, for later analyses
+  or to share. A file goes here only when you say so, and
+  `DATA/DERIVED/README.md` records which driver rebuilds it and from what.
+  Interim working files go in `R/RDATA/` or `Stata/DTA/` instead, where a rerun
+  may replace them.
 - `ADMIN/`: the project's administrative record. Data use agreements, IRB and
   regulatory correspondence, sponsor and collaborator email, signed forms. Your
   agent will read a file here if you point it at one, but it will not use this
@@ -61,7 +69,8 @@ changes and you want the change here, copy it in by hand.
 
 1. Rename `R/Analysis1/` to your analysis name, then set the `analysis` line at
    the top of each `Driver.R` and each `Control.qmd` in that folder to match.
-2. Put your source PDFs in `REFERENCES/`, give them short names such as
+2. Put the data you received in `DATA/SOURCE/`. Put your source PDFs in
+   `REFERENCES/`, give them short names such as
    `Jones-2003.pdf`, then run `pdf2llm` on them so the extracted text lands in
    `REFERENCES/LLM_OUT/`. The tool is at https://github.com/rnj0nes/pdf2llm,
    and the kit workflow doc has the usage.
@@ -114,6 +123,19 @@ source(here::here("R", "<Analysis>", "manuscript_Driver.R"))
 To produce a proposal or an internal report from the same source, change
 `reference-doc` in the YAML to `../../TEMPLATES/reference_proposal.docx` or
 `../../TEMPLATES/reference_report.docx` and render again.
+
+The driver writes `REPORTS/` by converting through LibreOffice rather than by
+copying. Word reports Quarto's DOCX output as damaged whenever the document
+holds flextable tables, and opens a recovered copy named "Document 1" instead
+of your file. `002-Word-safe-docx.R` re-encodes the file so Word opens it
+directly. `RENDER/` still holds Quarto's own output, so compare against it if a
+table looks wrong.
+
+LibreOffice is optional. Without it the driver copies the file unchanged, still
+writes the dated document to `REPORTS/`, and prints a note explaining what the
+conversion would have fixed. Installing LibreOffice later needs no change to
+this project. It is free, and nothing else here uses it:
+https://www.libreoffice.org/download/
 
 ## Data analysis (QMD to R to DOCX), when you get there
 

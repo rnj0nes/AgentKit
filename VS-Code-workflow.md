@@ -67,6 +67,10 @@ exchange for each project being self-contained and portable.
 │   ├── <IRB and regulatory correspondence>
 │   ├── <sponsor and collaborator email>
 │   └── <signed forms, approvals, amendments>
+├── DATA
+│   ├── SOURCE                    (data as received; agents read only)
+│   └── DERIVED                   (kept, reusable datasets)
+│       └── README.md             (manifest: file, driver, inputs, date)
 ├── EXCALIDRAW
 │   └── figure-1.excalidraw.svg
 ├── FIGURES
@@ -275,7 +279,28 @@ does not create the image and Quarto fails rather than warns on a missing
 background. To use one, drop an image at `FIGURES/watermark.png` and uncomment
 the four `title-slide-attributes` lines.
 
-### 1.5 ADMIN
+### 1.5 DATA
+
+`DATA/` holds the project's datasets, split by what may happen to them.
+`DATA/SOURCE/` holds data exactly as it arrived from a provider, collaborator,
+or data manager. Agents read it and never write to it, and no project code
+writes there either. That rule keeps an untouched copy of what the project
+received, so any result can be traced back to it.
+
+`DATA/DERIVED/` holds datasets the project builds and keeps, for later
+analyses or to share. A file goes there only when you say so. It is built only
+from `SOURCE/` or other `DERIVED/` files, and its row in
+`DATA/DERIVED/README.md` names the driver that rebuilds it, its inputs, and the
+date it was last built. An agent may add files there but asks before replacing
+or deleting one.
+
+`R/RDATA/` and `Stata/DTA/` hold interim working files that any rerun may
+replace. For example, a cleaned analytic file sent to a co-author as `.dta`
+and `.sav` belongs in `DERIVED/`, while a temporary merge used only within an
+ongoing analysis belongs in `R/RDATA/`. The driver that builds the kept file
+must read its inputs from `SOURCE/` or `DERIVED/`, not from that temporary merge.
+
+### 1.6 ADMIN
 
 `ADMIN/` holds the project's administrative record rather than anything that
 feeds an analysis or a document. Data use agreements, IRB and regulatory
@@ -292,7 +317,7 @@ contact details, and agreements carry confidentiality terms.
 
 If a project is ever shared or made public, this is the first folder to check.
 
-### 1.6 Reference docs
+### 1.7 Reference docs
 
 There is no single `reference.docx` anymore. Different document types need
 different pandoc reference formatting (margins, heading styles, page
@@ -316,7 +341,7 @@ file, in places Word does not display and pandoc ignores. Nothing looks wrong
 and nothing renders wrong. Run `scrub_reference_docs.py` from `_AgentKit` over
 the file before the project is shared or made public.
 
-### 1.7 References and agent instructions
+### 1.8 References and agent instructions
 
 (1) Collect your references and source material and place copies in
 `./REFERENCES`.
@@ -328,7 +353,7 @@ material, and let your agent know.
 `AGENTS.md` and `.github/copilot-instructions.md` need no setup here. They
 were copied in when you ran `new_project.sh`.
 
-### 1.8 Using your Agent
+### 1.9 Using your Agent
 
 Open your AI-agent-supported IDE (e.g., VS Code) in the project folder, or
 let `new_project.sh` do it for you. Copilot Chat reads

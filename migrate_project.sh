@@ -35,6 +35,7 @@
 #   migrate_project.sh <ProjectName> [parent-dir]
 
 set -eu
+setopt null_glob 2>/dev/null || true   # zsh; harmless no-op under bash
 
 AGENT_KIT="$HOME/Library/CloudStorage/Dropbox/Work/_AgentKit"
 
@@ -188,11 +189,12 @@ echo "Built the current structure in place"
 
 mkdir -p "$PROJECT_DIR/R/$ANALYSIS" "$PROJECT_DIR/Stata/$ANALYSIS"
 
-# Keep the two R starters for this analysis; drop the template drivers so there
+# Keep the R starters for this analysis; drop the template drivers so there
 # is no question which driver is yours once your own lands here.
 SEED="$PROJECT_DIR/R/Analysis1"
 if [ -d "$SEED" ] && [ "$ANALYSIS" != "Analysis1" ]; then
-  for f in "$SEED"/000-Libraries.R "$SEED"/001-Environment-settings.R; do
+  for f in "$SEED"/000-Libraries.R "$SEED"/001-Environment-settings.R \
+           "$SEED"/002-Word-safe-docx.R; do
     [ -e "$f" ] && mv "$f" "$PROJECT_DIR/R/$ANALYSIS/"
   done
   rm -rf "$SEED"
@@ -241,7 +243,7 @@ done
 cd - >/dev/null
 
 # Whole folders that keep their names and contents.
-for d in REFERENCES FIGURES MD EXCALIDRAW REPORTS ADMIN RENDER \
+for d in REFERENCES FIGURES MD EXCALIDRAW REPORTS ADMIN DATA RENDER \
          R/RDATA R/MPLUS_OUTPUT Stata/DTA Stata/MPLUS_OUTPUT; do
   [ -d "$BACKUP_WIP/$d" ] || continue
   mkdir -p "$PROJECT_DIR/$d"

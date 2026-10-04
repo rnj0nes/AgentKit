@@ -59,7 +59,7 @@ Example: `R/show_out_section.R` extracts and formats sections from Mplus `.out` 
 - Do not hardcode absolute paths. Build every path with `here::here()`.
 - Save generated figures only to `FIGURES/`, which is flat and shared. Section 4 naming keeps analyses from colliding there.
 - Save generated markdown/tables only to `MD/` when intended for inclusion. Also flat and shared.
-- Save intermediate artifacts and analysis outputs to `R/RDATA/`.
+- Save interim artifacts and analysis outputs to `R/RDATA/`. Write to `DATA/DERIVED/` only as the `DATA/` section of `AGENTS.md` allows. Never write to `DATA/SOURCE/`.
 - `TEMPLATES/` holds this project's pandoc reference documents, referenced from control-file YAML as `../../TEMPLATES/reference_<type>.docx`. They are working files and get restyled per project.
 - `RENDER/` holds driver output only. Do not write to it yourself and do not read from it as a stable location, because a rerun replaces what is there.
 - Finished reports live in `REPORTS/`, copied out of `RENDER/` by the driver with the analysis name and the date in the filename.
@@ -107,6 +107,81 @@ These handle shaped text and multibyte glyphs more reliably than base devices.
 - Build compact tables in chunk code and format with `kableExtra`.
 - Keep digits and labels readable at slide scale.
 - Use explicit item ordering; do not rely on accidental column order.
+
+## 7.1 DOCX tables via flextable and `print_kbl()`
+
+This section applies only to projects that supply `R/psymca_helpers.R`;
+AgentKit does not ship that helper. It masks `kbl()`/`kable_styling()` so the docx target
+builds a native `flextable` instead of an HTML table Quarto cannot embed in
+Word. Printing that flextable is not optional plumbing; get it wrong and the
+failure ranges from a garbled report to a render that never finishes.
+
+- Never call bare `print()` on the result of `kbl() |> kable_styling()`.
+  Call `print_kbl()` instead, in every chunk, whether or not the call sits
+  inside a loop.
+- The chunk calling `print_kbl()` must itself set `#| results: asis`. This
+  is not optional and does not just affect loops:
+  - **Missing `results: asis`, `print()` instead of `print_kbl()`, inside a
+    loop**: `print.flextable()` dumps a plain-text object summary ("a
+    flextable object. col_keys: ...") that pandoc renders as ordinary body
+    text. The report builds fine and looks wrong (no tables at all).
+  - **Missing `results: asis` on a single `print_kbl()` call, even outside
+    any loop**: observed to hang pandoc at 100% CPU for minutes with no
+    output and no error, rather than merely misrendering. `print_kbl()`
+    reaches `flextable::flextable_to_rmd()`, which writes raw pandoc markup
+    via `cat()` and internally calls `knitr::knit_child()`; without asis,
+    this has hung rather than failed. If a `report_Driver.R` render seems to
+    hang, check every chunk that calls `print_kbl()` for a missing
+    `results: asis` before assuming anything else is wrong.
+- `results: asis` is a chunk-level `knitr` option and cannot be supplied by
+  the R code inside the chunk; it must be set as `#| results: asis` on its
+  own line under the chunk header.
+
+## 7.2 Word reports flextable DOCX output as damaged
+
+A DOCX that Quarto builds with flextable tables opens in Word behind the
+warning "Word found unreadable content". Clicking Yes opens the document, but
+Word opens a recovered copy named "Document 1", so the original filename is
+gone and a save writes to the wrong place. LibreOffice opens the same file with
+no warning at all.
+
+**Rule: fix this by re-encoding the file, not by changing flextable
+formatting.** The formatting route was tried and abandoned.
+
+`R/<Analysis>/002-Word-safe-docx.R` holds `word_safe_docx(input, output)`. It
+runs LibreOffice headless with the Word 2010-365 filter, writes into a
+temporary folder, checks that the result is a readable DOCX, and copies it to
+the output path.
+
+**LibreOffice is optional.** When it is missing, or when it is present but the
+conversion fails, the function copies the file unchanged, prints a note, and
+returns `FALSE`. A render never fails because of this step, so a collaborator
+who has never installed LibreOffice still gets a dated document in `REPORTS/`.
+The two cases print different notes, and the conversion failure also raises an
+R warning, because a broken LibreOffice is worth noticing and an absent one is
+not.
+
+The function returns `TRUE` when it converted the file and `FALSE` when it
+copied it, which is what lets the driver's closing line say which happened.
+Pass `fallback = FALSE` to make any problem an error instead. The command line
+form uses that, because its job is to tell you whether conversion works on a
+given machine.
+
+Three details that break it if you rewrite the call yourself:
+
+- R sets `LD_LIBRARY_PATH` to its own library directories. LibreOffice inherits
+  it, loads R's libraries instead of its own, and dies before converting
+  anything. The `system2()` call blanks that variable for the child process.
+- LibreOffice writes into `--outdir` under the input file's own basename and
+  refuses to overwrite its own input. Converting into a temporary folder and
+  then copying is what lets the output carry the dated name.
+- `soffice` exits zero even when it writes nothing, so the exit status alone
+  does not tell you the conversion happened.
+
+The conversion rewrites the whole document, including the styles inherited from
+`TEMPLATES/reference_*.docx`. If a table or a heading looks wrong in `REPORTS/`,
+compare it against the same build in `RENDER/`, which is Quarto's untouched
+output.
 
 ## 8. Runtime package policy
 
@@ -169,6 +244,32 @@ file.copy(
             sprintf("%s_%s_%s.%s", analysis, stem, format(Sys.Date()), ext)),
   overwrite = TRUE
 )
+```
+
+**DOCX drivers replace step 3.** Copying a Quarto DOCX into `REPORTS/` carries
+the flextable damage described in section 7.2 with it. Convert instead:
+
+```r
+source(file.path(src_dir, "002-Word-safe-docx.R"))
+
+reports_dir <- here::here("REPORTS")
+if (!dir.exists(reports_dir)) dir.create(reports_dir)
+dated <- file.path(
+  reports_dir,
+  sprintf("%s_%s_%s.%s", analysis, stem, format(Sys.Date()), ext)
+)
+converted <- word_safe_docx(flat, dated, quiet = TRUE)
+```
+
+`RENDER/` still holds Quarto's own output and `REPORTS/` holds the version Word
+opens. Slide drivers build HTML and keep the plain copy.
+
+The driver reports which path it took:
+
+```r
+cat("Built", basename(flat), "in RENDER/,",
+    if (converted) "re-saved to REPORTS/ as" else "copied unconverted to REPORTS/ as",
+    basename(dated), "\n")
 ```
 
 A same-day rerun replaces that day's file in `REPORTS/` and leaves earlier dates alone.

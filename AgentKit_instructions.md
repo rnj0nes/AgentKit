@@ -34,6 +34,20 @@ workspace before continuing.
   refuses.
 - `_AgentKit/update-existing-projects.md`: how to run the migration, what moves
   where, and what still needs a human afterward.
+- `_AgentKit/add_word_safe_docx.sh`: adds the LibreOffice DOCX re-save to a
+  project that already exists. It copies `002-Word-safe-docx.R` into every
+  analysis folder and patches each DOCX driver. It matches the two statements
+  it replaces, the `file.copy(flat, dated, overwrite = TRUE)` call and the
+  closing `cat()`, rather than the whole block, because real drivers carry
+  their own headers and comments. A driver holding that call zero times or more
+  than once is reported and left alone with the replacement text printed. A
+  driver whose closing message was rewritten still gets the call patched, and
+  the script says the message may no longer read true. Every driver it touches is
+  backed up to `<name>.bak` first. It changes no rule files, running it twice
+  is safe, and it upgrades a driver still on the first version of the pattern,
+  the one that stopped the render when LibreOffice was missing. It reports
+  whether LibreOffice is installed but never requires it. This is a one-shot script for one change, so it does not
+  reverse the freeze-at-creation model.
 - `_AgentKit/README.md`: entry point for the public GitHub repo. Explains the
   method and the reasoning rather than restating the contracts.
 - `_AgentKit/.gitignore`: keeps `REFERENCES/Jones_Writing_Samples/` out of the
@@ -57,6 +71,16 @@ workspace before continuing.
   project's `.github/`. Regenerate it from the skill when that skill changes.
 - `_AgentKit/templates/`: starter files copied into each new project (slide
   deck, manuscript, R starters, `CLAUDE.md`, project `README.md`).
+- `_AgentKit/templates/R/002-Word-safe-docx.R`: re-saves a rendered DOCX
+  through LibreOffice. Word reports Quarto's DOCX output as damaged whenever
+  the document holds flextable tables, and opens the recovered copy under the
+  name "Document 1", losing the filename. LibreOffice reads the same file and
+  writes it back out in a form Word accepts. `manuscript_Driver.R` sources this
+  file and calls `word_safe_docx()` in place of copying into `REPORTS/`, so
+  `RENDER/` keeps Quarto's own output and `REPORTS/` gets the version Word
+  opens. LibreOffice is optional. Without it the file is copied unchanged and
+  the helper prints a note suggesting the install, so someone adopting the kit
+  is never blocked by a dependency they have not heard of.
 - `_AgentKit/new_project.sh`: the scaffolding script, maintained here as
   source code, not run here against a real project.
 
@@ -111,6 +135,14 @@ silently degrades every grant drafting session.
 
 Revise `new_project.sh`: edit the script, then verify the change using the
 scratch-folder process above before treating the task as finished.
+
+Add the DOCX re-save to an existing project: run `add_word_safe_docx.sh` from
+that project's own session, not from here. Its argument is a path and defaults
+to the current folder, so run it inside the project with no argument, or pass a
+path from anywhere. This is deliberately unlike `migrate_project.sh`, which
+takes a project name plus a parent directory. This workspace does not modify a study's project folder. The script
+reports which drivers it patched and which it left alone, and the project's
+`R_Rules.md` stays behind the master until you copy it in by hand.
 
 Audit AgentKit for problems: check that `_AgentKit` contains exactly the files
 it should, that `new_project.sh` is executable, and that `templates/` holds the

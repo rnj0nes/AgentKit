@@ -16,9 +16,14 @@ path_rdata      <- here::here("R", "RDATA")
 path_reports    <- here::here("REPORTS")
 
 # ---- Data paths ----
+# DATA/SOURCE/ holds data as received. Read only; no code writes there.
+# DATA/DERIVED/ holds kept, reusable datasets, listed in its README.md.
+# R/RDATA/ (path_rdata above) holds interim working files.
+path_source     <- here::here("DATA", "SOURCE")
+path_derived    <- here::here("DATA", "DERIVED")
 # Add project-specific data file paths here. Keep them project-relative.
 # Example:
-#   file_data <- here::here("Stata", "DTA", "analytic.dta")
+#   file_data <- here::here("DATA", "SOURCE", "analytic.dta")
 
 # ---- Color palette (project branding) ----
 I <- 0.85   # intensity multiplier for RGB channels
@@ -37,7 +42,8 @@ color_navy    <- mk_col(  0,  60, 113, I)
 color_taupe   <- mk_col(183, 176, 156, I)
 
 # ---- Create output directories if missing ----
-for (p in c(path_rdata, path_md, path_figures, path_reports)) {
+# path_source is left out on purpose: code never creates or writes to it.
+for (p in c(path_rdata, path_derived, path_md, path_figures, path_reports)) {
   dir.create(p, showWarnings = FALSE, recursive = TRUE)
 }
 

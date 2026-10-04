@@ -75,11 +75,29 @@ instead by pointing its YAML at one of the `TEMPLATES/reference_*.docx` files.
 - Put generated, human readable outputs only in:
   - `MD/` for tables and text snippets used in reports
   - `FIGURES/` for figures used in reports
-- Keep raw and reference material in `REFERENCES/` (extracted artifacts in
-  `REFERENCES/LLM_OUT/`).
+- Keep reference documents in `REFERENCES/` (extracted artifacts in
+  `REFERENCES/LLM_OUT/`). Data files do not go here; they go in `DATA/`.
   - Do not hand edit extracted artifacts. Regenerate them with `pdf2llm`
     (https://github.com/rnj0nes/pdf2llm) when
     needed.
+- `DATA/` holds the project's datasets in two subfolders.
+  - `DATA/SOURCE/` holds data as received from a provider, collaborator, or
+    data manager. Read from it and never write to it. Do not create, edit,
+    rename, move, or delete a file there, and do not write code that does. If
+    a task seems to need a change in `DATA/SOURCE/`, stop and ask the user.
+  - `DATA/DERIVED/` holds datasets the project builds and keeps for reuse in
+    later analyses or for sharing. A file goes here only when the user says
+    so, either for that file or by naming a driver whose job is to produce
+    reusable data. All other working data goes to `R/RDATA/` or `Stata/DTA/`,
+    which hold interim files that code may overwrite at any time.
+  - Build a `DATA/DERIVED/` file only from files in `DATA/SOURCE/` or
+    `DATA/DERIVED/`, never from interim files in `R/RDATA/` or `Stata/DTA/`.
+  - Add new files to `DATA/DERIVED/` freely, but ask the user before
+    overwriting or deleting an existing one.
+  - `DATA/DERIVED/README.md` is the manifest. Each entry names a file, the
+    driver that writes it, its inputs, and the date it was last built. When
+    you write a `DATA/DERIVED/` file, or write or change a driver that does,
+    update the manifest in the same task.
 - `ADMIN/` holds the project's administrative record: data use agreements,
   IRB and regulatory correspondence, sponsor and collaborator email, signed
   forms, and anything similar. It is not analysis material and not writing

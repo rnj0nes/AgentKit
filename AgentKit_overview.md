@@ -32,13 +32,16 @@ holds:
 - `templates/`: starter files copied into each new project. A reveal.js slide
   deck (`slides_Control.qmd`, `slides_Driver.R`), a DOCX manuscript
   (`manuscript_Control.qmd`, `manuscript_Driver.R`), R starters
-  (`R/000-Libraries.R`, `R/001-Environment-settings.R`), a `CLAUDE.md` pointer
-  for Cowork, and a project `README.md`.
+  (`R/000-Libraries.R`, `R/001-Environment-settings.R`,
+  `R/002-Word-safe-docx.R`), a `CLAUDE.md` pointer for Cowork, and a project
+  `README.md`.
 - `new_project.sh`: a scaffolding script that creates a new project's
   folder skeleton and copies the files above into it.
 - `migrate_project.sh`: rebuilds a pre-restructure project in place, never
   renaming the folder, and leaves a verified backup as
   `<Project>_premigration`.
+- `add_word_safe_docx.sh`: adds the LibreOffice DOCX re-save to a project that
+  already exists, patching only drivers that still match the template.
 - `scrub_reference_docs.py`: replaces the text of a pandoc reference document
   with Lorem Ipsum while leaving its styles untouched.
 
@@ -92,6 +95,21 @@ simpler, but the habit still holds: after changing `new_project.sh`, run it in
 a scratch folder and read back a copied file to confirm it holds real content,
 rather than trusting the exit status alone.
 
+Re-save DOCX output through LibreOffice rather than fixing flextable. Word
+reports Quarto's DOCX output as damaged whenever the document holds flextable
+tables, then opens a recovered copy named "Document 1" and loses the filename.
+Rich tried the flextable formatting route and abandoned it. LibreOffice reads
+the same file without complaint, so the manuscript driver now writes `REPORTS/`
+by converting through LibreOffice instead of copying. `RENDER/` still holds
+Quarto's own output, which keeps the raw build available for comparison when a
+table looks wrong after the round trip.
+
+Treat LibreOffice as optional rather than as a dependency. The kit is published
+for other people to use, and requiring a second application to render a
+document would cost more adopters than the Word prompt costs. A machine without
+LibreOffice gets the dated copy and a note suggesting the install. This
+reverses the first version of the change, which stopped the render.
+
 ## What is explicitly out of scope here
 
 This project is for defining and editing the AgentKit documents: `AGENTS.md`,
@@ -137,3 +155,9 @@ in Dropbox. Delete the scratch output once the change is confirmed.
 - `new_project.sh` was rewritten to copy rather than symlink, and was tested in
   a scratch folder that confirmed every file is a real copy. Keep testing any
   future change to the script the same way before considering it done.
+- The driver render pattern has been run end to end against a real document and
+  works, which closes the item that stood open from 17 August.
+- Whether the LibreOffice DOCX re-save preserves a reference document's styles
+  across a long manuscript is unverified. One document has been checked. If a
+  heading or a table looks wrong in `REPORTS/`, compare it against the same
+  build in `RENDER/`, which is Quarto's untouched output.

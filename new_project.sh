@@ -52,11 +52,24 @@ mkdir -p "$PROJECT_DIR"
 cd "$PROJECT_DIR"
 
 # --- folder skeleton ---
-for d in RENDER REPORTS EXCALIDRAW FIGURES REFERENCES RULES_AND_LOGS ADMIN MD R Stata TEMPLATES .github; do
+for d in RENDER REPORTS EXCALIDRAW FIGURES REFERENCES RULES_AND_LOGS ADMIN DATA MD R Stata TEMPLATES .github; do
   mkdir -p "$d"
 done
 mkdir -p REFERENCES/LLM_OUT R/RDATA R/MPLUS_OUTPUT Stata/DTA Stata/MPLUS_OUTPUT
+mkdir -p DATA/SOURCE DATA/DERIVED
 touch EXCALIDRAW/figure-1.excalidraw.svg bibliography.bib
+
+# Manifest for DATA/DERIVED/. AGENTS.md requires an entry for every kept dataset.
+cat > DATA/DERIVED/README.md <<'MANIFEST'
+# DATA/DERIVED manifest
+
+Datasets this project builds and keeps for reuse or sharing. Each file here is
+built only from files in `DATA/SOURCE/` or `DATA/DERIVED/`. Add a row whenever a
+file is added, and update its row whenever the file is rebuilt.
+
+| File | Written by (driver) | Inputs | Last built |
+| --- | --- | --- | --- |
+MANIFEST
 
 # Root marker for the here package. Drivers and control files live in
 # R/<Analysis>/ and reach the project root with here::here(), which needs a
@@ -112,10 +125,15 @@ cp "$AGENT_KIT/templates/manuscript_Driver.R"          "R/$ANALYSIS/manuscript_D
 cp "$AGENT_KIT/templates/R/000-Libraries.R"            "R/$ANALYSIS/000-Libraries.R"
 cp "$AGENT_KIT/templates/R/001-Environment-settings.R" "R/$ANALYSIS/001-Environment-settings.R"
 
+# The manuscript driver sources this one to re-save its DOCX through
+# LibreOffice, which is what stops Word reporting flextable output as damaged.
+cp "$AGENT_KIT/templates/R/002-Word-safe-docx.R"       "R/$ANALYSIS/002-Word-safe-docx.R"
+
 echo "Created $PROJECT_DIR"
 echo "Copied AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, README.md,"
 echo "RULES_AND_LOGS/R_Rules.md, RULES_AND_LOGS/Mplus_Rules.md,"
 echo "the slide and manuscript templates and R starters into R/$ANALYSIS/,"
+echo "including 002-Word-safe-docx.R, which the manuscript driver sources,"
 echo "and reference doc(s):"
 if [[ ${#LINKED_REFS[@]} -gt 0 ]]; then
   printf '  %s\n' "${LINKED_REFS[@]}"
