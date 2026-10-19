@@ -877,3 +877,81 @@ of Dropbox entirely.
 `DECISIONS.md` holds three 2026-09-05 entries twice. Not yet cleaned up.
 
 Nothing from this session is committed.
+
+## 2026-10-19
+
+Added `archive_reports.R`, a utility that ships in every new project's
+`REPORTS/` folder. Each render adds a dated copy to `REPORTS/`, and hand-edited
+copies add more, so one report can reach a dozen versions (`MS_Appendix_1` had
+12). The script keeps the newest copy of each report and moves the rest to
+`REPORTS/Archive/`.
+
+### What was decided
+
+The script finds reports from their file names, with no list of report names.
+It reads each name as `<stub>_<YYYY-MM-DD>[_<HHMM>][_<tag>].<ext>`. Files that
+share stub, tag, and extension are one report. Newest is the latest date in the
+name, then the latest time. File modification times are ignored, because
+Dropbox rewrites them.
+
+A plain render and an `_edited` copy are separate reports, and each keeps its
+own newest copy. A plain render's name has no time, so it cannot be ordered
+against an edit made the same day. Treating them as one report could archive a
+render made after the last edit. This was Claude's default, flagged to Rich and
+not overruled.
+
+Rich's calls: write it in base R and run it with `Rscript` on macOS, Windows,
+and Ubuntu; no confirmation prompt, because it moves and never deletes; name
+clashes in `Archive/` get `_1`, then `_2`; handle `.docx`, `.html`, `.pdf`, and
+`.pptx`; move an HTML file's `_files` folder with it, taking the same clash
+number. When an HTML file is renamed on a clash, the script rewrites the links
+inside it so it still finds its renamed `_files` folder. Without that, the
+archived copy would lose its images.
+
+`Archive/` is created on first use, only when something needs moving. Undated
+files and Word `~$` lock files are left alone.
+
+Kept the kit's own `RULES_AND_LOGS/SESSION_LOGS.md` and `DECISIONS.md` as the
+record of how the kit evolves. They are never copied into projects, so they do
+not collide with a project's logs of the same name. A running log in the
+README was considered and dropped: the README is the public explanation of the
+kit, and history would bury it.
+
+### Approaches considered and dropped
+
+Three launchers (`.command`, `.bat`, `.sh`). Dropped for one `Rscript` command
+documented in the utility's README.
+
+A one-shot `add_archive_reports.sh` for existing projects, like
+`add_word_safe_docx.sh`. Dropped: two files copied by hand is simpler.
+
+### What changed
+
+New `templates/REPORTS/archive_reports.R` and
+`templates/REPORTS/archive_reports_README.md`. `new_project.sh` copies both
+into `REPORTS/`. `README.md` (both folder trees and "Using the scripts"),
+`templates/README.md` (`REPORTS/` bullet), and `AgentKit_instructions.md`
+("Where things live") describe it. Committed as `4d7f38b`.
+
+### Testing
+
+Ran the script under R 4.3.3 on Linux against the 12 `MS_Appendix_1` names plus
+HTML with `_files` folders, PDF, PPTX, an uppercase extension, an undated file,
+a lock file, and clashes already in `Archive/`. Kept 2 of the 12 Appendix files
+and moved 10. Clash numbering and the rewritten HTML link were correct. A
+second run moved nothing. Ran a copy of `new_project.sh` in scratch and
+confirmed both files arrive identical to the masters. Scratch output deleted.
+
+### Open
+
+Not yet run on macOS or Windows. The first real use on a project's `REPORTS/`
+is the first live test.
+
+If `Archive/` cannot be created (read-only folder, or a file named `Archive`),
+every move reports FAILED with a message about open files, which points at the
+wrong cause. Proposed fix: stop with a clear message, and say in the README
+that `Archive/` is created on first use. Not yet approved.
+
+`git push` fails from Claude's session, which cannot use the GitHub sign-in on
+Rich's Mac. Push from Terminal; `4d7f38b` was pushed that way.
+

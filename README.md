@@ -204,7 +204,7 @@ The analysis folders in a scaffolded project are self-contained. `R/<Analysis>/`
 
 ## Using the scripts
 
-The scripts do different jobs, and it is useful to keep their scope clear. `archive_reports.R`, described below, is the exception to the rule that scripts run from `_AgentKit`: it ships inside every project. `new_project.sh` starts a new project from the current masters. `migrate_project.sh` changes the layout of an existing, older AgentKit project. `scrub_reference_docs.py` removes hidden text and metadata from a reference document. `add_word_safe_docx.sh` adds one specific change to an existing project. None is an update mechanism for every project you have ever made; projects own copies of the masters, and that choice is deliberate.
+The scripts do different jobs, and it is useful to keep their scope clear. `new_project.sh` starts a new project from the current masters. `migrate_project.sh` changes the layout of an existing, older AgentKit project. `scrub_reference_docs.py` removes hidden text and metadata from a reference document. `add_word_safe_docx.sh` adds one specific change to an existing project. `archive_reports.R` differs from the rest: it is not run from `_AgentKit` but ships inside every project's `REPORTS/` folder. None is an update mechanism for every project you have ever made; projects own copies of the masters, and that choice is deliberate.
 
 `new_project.sh` scaffolds a new project. Before its first use, edit the `AGENT_KIT` variable near the top to point to your copy of this repository, make the script executable with `chmod +x new_project.sh`, and put it on your `PATH` if you want to invoke it from anywhere. Then run either of these commands:
 
