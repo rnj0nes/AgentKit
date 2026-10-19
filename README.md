@@ -38,6 +38,9 @@ _AgentKit/
     ├── reference_manuscript.docx    pandoc reference doc for manuscripts
     ├── reference_proposal.docx      pandoc reference doc for proposals
     ├── reference_report.docx        pandoc reference doc for reports
+    ├── REPORTS/
+    │   ├── archive_reports.R        moves older report copies to REPORTS/Archive/
+    │   └── archive_reports_README.md
     └── R/
         ├── 000-Libraries.R          installs/loads the R packages every project needs
         ├── 001-Environment-settings.R
@@ -76,6 +79,8 @@ project's own `README.md` (`templates/README.md` here, before it is copied).
 │   └── LLM_OUT/                     pdf2llm output: page-marked text, JSONL, metadata
 ├── RENDER/                          driver output; scratch, emptied on every render
 ├── REPORTS/                         dated, named copies of finished renders
+│   ├── archive_reports.R            moves older copies to REPORTS/Archive/
+│   └── archive_reports_README.md
 ├── FIGURES/                         flat, shared generated figures
 ├── MD/                              flat, shared generated tables and text snippets
 ├── EXCALIDRAW/
@@ -199,7 +204,7 @@ The analysis folders in a scaffolded project are self-contained. `R/<Analysis>/`
 
 ## Using the scripts
 
-The scripts do different jobs, and it is useful to keep their scope clear. `new_project.sh` starts a new project from the current masters. `migrate_project.sh` changes the layout of an existing, older AgentKit project. `scrub_reference_docs.py` removes hidden text and metadata from a reference document. `add_word_safe_docx.sh` adds one specific change to an existing project. None is an update mechanism for every project you have ever made; projects own copies of the masters, and that choice is deliberate.
+The scripts do different jobs, and it is useful to keep their scope clear. `archive_reports.R`, described below, is the exception to the rule that scripts run from `_AgentKit`: it ships inside every project. `new_project.sh` starts a new project from the current masters. `migrate_project.sh` changes the layout of an existing, older AgentKit project. `scrub_reference_docs.py` removes hidden text and metadata from a reference document. `add_word_safe_docx.sh` adds one specific change to an existing project. None is an update mechanism for every project you have ever made; projects own copies of the masters, and that choice is deliberate.
 
 `new_project.sh` scaffolds a new project. Before its first use, edit the `AGENT_KIT` variable near the top to point to your copy of this repository, make the script executable with `chmod +x new_project.sh`, and put it on your `PATH` if you want to invoke it from anywhere. Then run either of these commands:
 
@@ -232,6 +237,14 @@ Its argument is a path and it defaults to the current folder, so running it insi
 It copies `002-Word-safe-docx.R` into every analysis folder, then patches each DOCX driver. It matches the two statements it replaces, the `file.copy(flat, dated, overwrite = TRUE)` call and the closing `cat()`, rather than the surrounding block, because a real driver carries its own header and comments. A driver that does not hold that call exactly once is reported and left alone with the replacement text printed for you to place by hand. A driver whose closing message you rewrote still gets the call patched, and the script tells you the message may no longer read true. Every driver it touches is backed up to `<name>.bak` first, slide drivers are ignored, rule files are not touched, and running it twice changes nothing the second time. It needs `python3` for the patch.
 
 LibreOffice is optional throughout. The script reports whether it found LibreOffice but never requires it, and a project rendering on a machine without it gets the dated DOCX plus a note explaining what the conversion would have fixed. Nothing has to change when LibreOffice is installed later.
+
+`archive_reports.R` is not run from here. `new_project.sh` copies it, with its README, into each new project's `REPORTS/` folder. Every render adds a dated copy to `REPORTS/`, so the folder fills with old versions of each report. The script finds each report from its file name, keeps the newest copy, and moves the older copies to `REPORTS/Archive/`. It needs no list of report names and deletes nothing. It is written in base R, so the same command runs on macOS, Windows, and Ubuntu:
+
+```
+Rscript REPORTS/archive_reports.R
+```
+
+A plain render and an `_edited` copy count as separate reports, because a plain render's name carries no time and so cannot be ordered against a same-day edit. `archive_reports_README.md` gives the full rules. Existing projects do not receive the script automatically; copy both files into the project's `REPORTS/` folder by hand.
 
 `scrub_reference_docs.py` replaces the visible text in a pandoc reference `.docx` with Lorem Ipsum and clears its document properties, while leaving the parts pandoc reads for formatting (`styles.xml`, `numbering.xml`, `settings.xml`, and the theme) byte-identical:
 

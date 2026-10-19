@@ -129,11 +129,19 @@ cp "$AGENT_KIT/templates/R/001-Environment-settings.R" "R/$ANALYSIS/001-Environm
 # LibreOffice, which is what stops Word reporting flextable output as damaged.
 cp "$AGENT_KIT/templates/R/002-Word-safe-docx.R"       "R/$ANALYSIS/002-Word-safe-docx.R"
 
+# REPORTS/ gains a dated copy on every render. archive_reports.R moves the older
+# copies of each report into REPORTS/Archive/ and keeps the newest. Run it with
+# Rscript on any platform; its README explains how it groups the files.
+cp "$AGENT_KIT/templates/REPORTS/archive_reports.R"        "REPORTS/archive_reports.R"
+cp "$AGENT_KIT/templates/REPORTS/archive_reports_README.md" "REPORTS/archive_reports_README.md"
+
 echo "Created $PROJECT_DIR"
 echo "Copied AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, README.md,"
 echo "RULES_AND_LOGS/R_Rules.md, RULES_AND_LOGS/Mplus_Rules.md,"
 echo "the slide and manuscript templates and R starters into R/$ANALYSIS/,"
 echo "including 002-Word-safe-docx.R, which the manuscript driver sources,"
+echo "REPORTS/archive_reports.R and its README, which move older report copies"
+echo "into REPORTS/Archive/ (run: Rscript REPORTS/archive_reports.R),"
 echo "and reference doc(s):"
 if [[ ${#LINKED_REFS[@]} -gt 0 ]]; then
   printf '  %s\n' "${LINKED_REFS[@]}"

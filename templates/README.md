@@ -35,7 +35,10 @@ style and is always in force.
 - `REPORTS/`: finished output, also flat and shared. The driver copies each
   build out of `RENDER/` with the analysis name and the render date, so
   `Project1_manuscript_2026-02-26.docx` sits beside last week's version and
-  beside `Project2_slides_2026-02-26.html`.
+  beside `Project2_slides_2026-02-26.html`. When old versions pile up, run
+  `Rscript REPORTS/archive_reports.R`. It keeps the newest copy of each report
+  and moves the rest to `REPORTS/Archive/`. `REPORTS/archive_reports_README.md`
+  explains how it decides which copies are old.
 - `REFERENCES/`: your source material, and nothing else. Extracted text lands
   in `REFERENCES/LLM_OUT/` after you run `pdf2llm`.
 - `RULES_AND_LOGS/`: `R_Rules.md` covers R and Quarto conventions and

@@ -81,6 +81,13 @@ workspace before continuing.
   opens. LibreOffice is optional. Without it the file is copied unchanged and
   the helper prints a note suggesting the install, so someone adopting the kit
   is never blocked by a dependency they have not heard of.
+- `_AgentKit/templates/REPORTS/archive_reports.R` and
+  `archive_reports_README.md`: copied into each new project's `REPORTS/`.
+  The script keeps the newest copy of each report and moves older copies to
+  `REPORTS/Archive/`. It groups files by the name before the date (stub), an
+  optional tag such as `edited`, and the extension, so it needs no list of
+  report names. It runs under `Rscript` on macOS, Windows, and Ubuntu with
+  base R only. Existing projects get it by hand copy, not by a script.
 - `_AgentKit/new_project.sh`: the scaffolding script, maintained here as
   source code, not run here against a real project.
 
