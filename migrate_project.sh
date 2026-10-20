@@ -115,7 +115,14 @@ cp -R "$PROJECT_DIR" "$BACKUP_WIP"
 # --- 2. verify the backup ----------------------------------------------------
 
 count_files () { find "$1" -type f 2>/dev/null | wc -l | tr -d ' '; }
-total_bytes () { find "$1" -type f -exec wc -c {} + 2>/dev/null | tail -1 | awk '{print $1}'; }
+# Sum every file's size in one pass. find -exec ... {} + splits a long file list
+# into batches, and wc prints a "total" line per batch, so keeping only the last
+# line (the old tail -1) compared a fraction of each tree. Paths from find always
+# contain a slash, so a line whose name is exactly "total" is a batch summary.
+total_bytes () {
+  find "$1" -type f -exec wc -c {} + 2>/dev/null |
+    awk '{ n = $1; sub(/^ *[0-9]+ /, ""); if ($0 != "total") s += n } END { printf "%.0f\n", s }'
+}
 
 SRC_N="$(count_files "$PROJECT_DIR")";  BAK_N="$(count_files "$BACKUP_WIP")"
 SRC_B="$(total_bytes "$PROJECT_DIR")";  BAK_B="$(total_bytes "$BACKUP_WIP")"

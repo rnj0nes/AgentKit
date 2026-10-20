@@ -955,3 +955,73 @@ that `Archive/` is created on first use. Not yet approved.
 `git push` fails from Claude's session, which cannot use the GitHub sign-in on
 Rich's Mac. Push from Terminal; `4d7f38b` was pushed that way.
 
+## 2026-10-20
+
+Fixed a bug in `migrate_project.sh` that made the backup check fail on any
+large project, and migrated CLASP by hand because the script does not fit its
+layout.
+
+### What was decided
+
+The backup check compared byte totals from `find -exec wc -c {} + | tail -1`.
+`find` splits a long file list into batches and `wc` prints a "total" line per
+batch, so `tail -1` kept only the last batch. The original and the copy list
+files in different orders, so their last batches differ and the check fails
+even when the copy is perfect. The new `total_bytes` sums every file and skips
+the per-batch "total" lines. Paths from `find` always contain a slash, so a
+line whose name is exactly "total" can only be a summary line.
+
+CLASP (`CLASP/POSTED/ANALYSIS`) was migrated by hand, not with the script. The
+project lives two levels below the study folder, has no `AGENTS.md`, and is
+Stata only, with three drivers that share most of their do-files. The script
+would have found none of its expected files. Moving the files also breaks
+every `do Stata/...` call and every `.include ../MD/...`, so the hand migration
+edited path strings only, and no analysis code.
+
+Shared do-files went to `Stata/Common/`, with one folder per analysis
+(`Stata/Analysis/`, `Stata/Outcome/`, `Stata/MAIHDA/`) holding its driver,
+control file, and analysis-only scripts. This bends the contract, which has no
+place for code shared across analyses. Duplicating the shared files in each
+folder was rejected because the copies would drift.
+
+Drivers now copy the report to `RENDER/CLASP_<Analysis>.docx` and a dated copy
+to `REPORTS/`, and no longer open Word. Rich does not want reports opened at
+the end of a run. `.venv` was dropped because `format_docx_tables.py` uses only
+the standard library; `099-Format-Report.do` now calls `python3`, which Stata's
+shell resolves to `/usr/bin/python3`. Source data stays in `POSTED/DATA/`, so
+the project has no `DATA/` folder.
+
+### Approaches considered and dropped
+
+Running `migrate_project.sh` on the CLASP root. It would have built a scaffold
+beside ADMIN and POSTED and returned nearly every file as unsorted.
+
+Erasing and rebuilding in place. CLASP is not shared through Dropbox, so the
+new layout was built in `ANALYSIS_new` and the two folders were renamed. The
+original stayed untouched until the swap, and nothing needed deleting.
+
+### What changed
+
+`migrate_project.sh`: `total_bytes` rewritten, with a comment on the bug.
+
+### Testing
+
+On `ANALYSIS_premigration` (5,353 files, 7 `wc` batches) and an identical
+copy, the old method gave 39,631,407 and 8,625,902 bytes. The new method gave
+136,957,009 for both, matching a Python sum of file sizes. Checked with
+`bash -n`; zsh was not available in the session. All three CLASP drivers
+rendered on Rich's Mac after the migration.
+
+### Open
+
+The contract needs a rule for code shared across analyses. CLASP's
+`Stata/Common/` is the first case.
+
+`migrate_project.sh` assumes the root-level `*_Control` and `*_Driver` layout.
+Projects that nest the analysis below a study folder, or use other names, need
+a hand migration like CLASP's.
+
+CLASP's old `REFERENCES/instructions.md` had two rules the current `AGENTS.md`
+lacks: open by naming the driver, the rebuild command, and the expected
+outputs; and prefer small diffs. Add them to `AGENTS.md` if wanted.
+
