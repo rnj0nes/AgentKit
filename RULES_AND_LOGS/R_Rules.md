@@ -14,7 +14,7 @@ A project holds one or more analyses. Each is a subfolder of `R/` named for the 
 - Analysis scripts in `R/<Analysis>/*.R` generate model outputs and figures.
 - Child slide files in `R/<Analysis>/*.qmd` present narrative, figures, and lightweight tables.
 
-`RENDER/`, `REPORTS/`, `FIGURES/`, and `MD/` are flat at the project root and shared by every analysis. They have no matching subfolders. Anything written there needs a name that will not collide with another analysis, which is why driver output carries the analysis name as a prefix.
+`RENDER/`, `REPORTS/`, `FIGURES/`, `MD/`, and `RESULTS/` are flat at the project root and shared by every analysis. They have no matching subfolders. Anything written there needs a name that will not collide with another analysis, which is why driver output carries the analysis name as a prefix.
 
 ## 2. Source order and setup
 
@@ -56,10 +56,12 @@ Example: `R/show_out_section.R` extracts and formats sections from Mplus `.out` 
 
 ## 3. Path and output rules
 
-- Do not hardcode absolute paths. Build every path with `here::here()`.
+- Do not hardcode absolute paths. Build every project path with `here::here()` and every data path with `data_path()` from `003-Data-paths.R`.
 - Save generated figures only to `FIGURES/`, which is flat and shared. Section 4 naming keeps analyses from colliding there.
 - Save generated markdown/tables only to `MD/` when intended for inclusion. Also flat and shared.
-- Save interim artifacts and analysis outputs to `R/RDATA/`. Write to `DATA/DERIVED/` only as the `DATA/` section of `AGENTS.md` allows. Never write to `DATA/SOURCE/`.
+- Never write a data file anywhere inside the project. Write interim data to `data_path("WORK", ...)`. Write kept datasets to `data_path("DERIVED", ...)` only as the data rules in `AGENTS.md` allow. Never write to `SOURCE` or `SHARE_DATA`.
+- Write every result that a report or its inline text draws on to `RESULTS/` with `save_result()`, then read it back in the control file. Report text pulls each number from these files rather than typing it in. Save tables of estimates, such as `broom::tidy(fit)`, never fitted model objects. `save_result()` refuses model objects and any table holding a variable listed in `DATA_DICTIONARY/ID_VARIABLES.txt`.
+- Before writing code that reads a data file, check its entry in `DATA_DICTIONARY/` for the file name, variable names, types, and value labels. Do not guess a name that is not listed there.
 - `TEMPLATES/` holds this project's pandoc reference documents, referenced from control-file YAML as `../../TEMPLATES/reference_<type>.docx`. They are working files and get restyled per project.
 - `RENDER/` holds driver output only. Do not write to it yourself and do not read from it as a stable location, because a rerun replaces what is there.
 - Finished reports live in `REPORTS/`, copied out of `RENDER/` by the driver with the analysis name and the date in the filename.
@@ -191,7 +193,9 @@ output.
 
 ## 9. Special slide type: downloads (slides) (like `R/082-Downloads.qmd`)
 
-Use this pattern for downloadable model files in self-contained revealjs HTML:
+Use this pattern for downloadable model files in self-contained revealjs HTML. This pattern is for teaching materials.
+
+Data payloads come only from `SHARE_DATA`, through `data_path("SHARE_DATA", ...)`. Rich places files there by hand after deciding they may be shared, so a deck may embed them and the rendered HTML may be read and shared. Never embed a file from `SOURCE`, `DERIVED`, `WORK`, or `MPLUS`, and never write code that copies a file into `SHARE_DATA`.
 
 - Base64-encode file payloads into data URIs.
 - For `.inp` downloads, sanitize `FILE = "...dat";` statements to basename only.
@@ -201,7 +205,7 @@ Use this pattern for downloadable model files in self-contained revealjs HTML:
 Important robustness rule:
 
 - Do not hardcode hashed `.dat` filenames when possible.
-- Prefer discovering the `.dat` file at runtime with `list.files()` in the model output directory, matching the input stem.
+- To offer a model's `.dat` file, Rich copies it into `SHARE_DATA` first. Discover it there at runtime with `list.files()`, matching the input stem.
 
 ## 10. Driver file: rendering into RENDER/ and REPORTS/
 
@@ -344,6 +348,7 @@ Inline math can still use standard `$...$` notation for MathJax rendering.
 Use this pattern to embed a file as a base64 download link in a self-contained revealjs HTML:
 
 ```r
+path <- data_path("SHARE_DATA", "filename.dta")   # data payloads come only from SHARE_DATA (section 9)
 b64 <- jsonlite::base64_enc(readBin(path, "raw", file.info(path)$size))
 knitr::asis_output(paste0(
   '<a href="data:application/octet-stream;base64,', b64,

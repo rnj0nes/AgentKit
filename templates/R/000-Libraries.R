@@ -17,11 +17,12 @@ install_github_if_missing <- function(pkg, repo) {
 }
 
 # Core packages for a QMD/R workflow. Add project-specific packages as needed.
-for (pkg in c("here", "tidyverse", "knitr", "kableExtra", "quarto")) {
+for (pkg in c("here", "haven", "tidyverse", "knitr", "kableExtra", "quarto")) {
   install_if_missing(pkg)
 }
 
 library(here)        # project-relative paths
+library(haven)       # Stata, SPSS, and SAS files; also read by 005-Data-dictionary.R
 library(tidyverse)   # data wrangling and visualization
 library(knitr)       # dynamic report generation
 library(kableExtra)  # tables

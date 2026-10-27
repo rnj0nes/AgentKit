@@ -7,17 +7,20 @@ Audience: LLM coding agents and future maintainers.
 
 Use this sequence for every model script:
 
-1. Define `mplus_outdir` as `here::here("R", "MPLUS_OUTPUT", "<analysis-id>")`.
+1. Define `mplus_outdir` as `data_path("MPLUS", "<analysis-id>")`. The run folder sits outside the project because its `.dat` file holds participant data.
 2. Build an `MplusAutomation::mplusObject(...)`.
 3. Write `.inp` and `.dat` with `mplusModeler(..., run = FALSE)` on every run.
 4. Execute with `MplusAutomation::runModels(target = inp_file)`.
 5. Read model results from `H5RESULTS` via `mplush5`.
-6. Save extracted tables back to `R/MPLUS_OUTPUT/<analysis-id>/`.
+6. Save extracted tables to `RESULTS/` with `save_result()`.
+7. Copy the `.out` files into the project with `mplus_return_out("<analysis-id>")`, which writes them to `R/MPLUS_OUTPUT/<analysis-id>/`. The `.inp`, `.dat`, and `.h5` files stay in `MPLUS`.
+
+Check that `SAVEDATA` and output options do not print individual records into the `.out` file. Agents read `.out` files, so a record listed there counts as data.
 
 Minimal pattern:
 
 ```r
-mplus_outdir <- here::here("R", "MPLUS_OUTPUT", "021-IRT-01")
+mplus_outdir <- data_path("MPLUS", "021-IRT-01")
 dir.create(mplus_outdir, showWarnings = FALSE, recursive = TRUE)
 
 inp_file <- file.path(mplus_outdir, "spelling_irt.inp")
@@ -31,6 +34,7 @@ MplusAutomation::mplusModeler(
 )
 
 MplusAutomation::runModels(target = inp_file)
+mplus_return_out("021-IRT-01")
 ```
 
 ## 2. Variable naming and mapping
@@ -201,7 +205,7 @@ For group-specific parameters, use strict checks and fail fast if no row matches
 ## 9. Save sidecar outputs for reproducibility
 
 After model runs, save any derived tables (for example item parameters, DIF area summaries)
-next to the model artifacts under the same `R/MPLUS_OUTPUT/<analysis-id>/` folder.
+to `RESULTS/` with `save_result()`, named with the analysis id as a prefix.
 
 Examples:
 - `spelling_irt_params.csv`

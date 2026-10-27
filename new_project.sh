@@ -30,12 +30,18 @@ set -euo pipefail
 setopt null_glob 2>/dev/null || true   # zsh; harmless no-op under bash
 
 # --- edit this one line if you move or rename _AgentKit ---
-AGENT_KIT="$HOME/Library/CloudStorage/Dropbox/Work/_AgentKit"
+AGENT_KIT="${AGENT_KIT:-$HOME/Library/CloudStorage/Dropbox/Work/_AgentKit}"
 # ------------------------------------------------------------
 
 PROJECT_NAME="${1:?Usage: new_project.sh <ProjectName> [parent-dir]}"
 PARENT_DIR="${2:-$PWD}"
 PROJECT_DIR="$PARENT_DIR/$PROJECT_NAME"
+
+# Participant data lives outside the project. Each machine keeps one paths file
+# per project here, read by 003-Data-paths.R and 003-Data-paths.do. Override
+# with AGENTKIT_DATA_PATHS, which the helpers honour too.
+DATA_PATHS_DIR="${AGENTKIT_DATA_PATHS:-$HOME/.agentkit/data_paths}"
+PATHS_FILE="$DATA_PATHS_DIR/$PROJECT_NAME.txt"
 
 if [[ ! -d "$AGENT_KIT" ]]; then
   echo "Error: _AgentKit not found at $AGENT_KIT" >&2
@@ -52,24 +58,45 @@ mkdir -p "$PROJECT_DIR"
 cd "$PROJECT_DIR"
 
 # --- folder skeleton ---
-for d in RENDER REPORTS EXCALIDRAW FIGURES REFERENCES RULES_AND_LOGS ADMIN DATA MD R Stata TEMPLATES .github; do
+# No DATA/, R/RDATA/, or Stata/DTA/: data lives outside the project, in the
+# locations named in the paths file. RESULTS/ holds aggregate results only, and
+# DATA_DICTIONARY/ describes the data without holding any.
+for d in RENDER REPORTS EXCALIDRAW FIGURES REFERENCES RULES_AND_LOGS ADMIN MD RESULTS DATA_DICTIONARY R Stata TEMPLATES .github; do
   mkdir -p "$d"
 done
-mkdir -p REFERENCES/LLM_OUT R/RDATA R/MPLUS_OUTPUT Stata/DTA Stata/MPLUS_OUTPUT
-mkdir -p DATA/SOURCE DATA/DERIVED
+mkdir -p REFERENCES/LLM_OUT R/MPLUS_OUTPUT Stata/MPLUS_OUTPUT
 touch EXCALIDRAW/figure-1.excalidraw.svg bibliography.bib
 
-# Manifest for DATA/DERIVED/. AGENTS.md requires an entry for every kept dataset.
-cat > DATA/DERIVED/README.md <<'MANIFEST'
-# DATA/DERIVED manifest
+# Manifest for the DERIVED location. AGENTS.md requires an entry for every kept
+# dataset. It lives in the project and names files, never their location.
+cat > RULES_AND_LOGS/DATA_MANIFEST.md <<'MANIFEST'
+# DERIVED data manifest
 
-Datasets this project builds and keeps for reuse or sharing. Each file here is
-built only from files in `DATA/SOURCE/` or `DATA/DERIVED/`. Add a row whenever a
-file is added, and update its row whenever the file is rebuilt.
+Datasets this project builds and keeps for reuse or sharing, in the DERIVED
+location named in the paths file. Each is built only from SOURCE or DERIVED
+files. Add a row whenever a file is added, and update its row whenever the file
+is rebuilt.
 
 | File | Written by (driver) | Inputs | Last built |
 | --- | --- | --- | --- |
 MANIFEST
+
+# Hand-written files in DATA_DICTIONARY/. 005-Data-dictionary.R writes the
+# other files there and never touches these two.
+cat > DATA_DICTIONARY/ID_VARIABLES.txt <<'IDS'
+# Participant ID variables, one name per line. save_result() refuses any table
+# holding one of these, and the data dictionary reports how each identifies
+# rows. Lines starting with # are comments.
+IDS
+
+cat > DATA_DICTIONARY/STUDY_NOTES.md <<'NOTES'
+# Study notes
+
+Written by hand. The generated files in this folder describe each data file's
+structure and distributions. This file holds what they cannot: study design,
+which variables are outcomes and exposures, how waves map to dates, sample
+restrictions, and known data problems.
+NOTES
 
 # Root marker for the here package. Drivers and control files live in
 # R/<Analysis>/ and reach the project root with here::here(), which needs a
@@ -84,8 +111,13 @@ ANALYSIS="Analysis1"
 mkdir -p "R/$ANALYSIS" "Stata/$ANALYSIS"
 
 # --- copy the contract and writing style (physical copies, not symlinks) ---
+# AGENTS.md already opens with the prime directive. The two Copilot files are
+# generated from masters that do not carry it, so it is prepended here. Copilot
+# loads copilot-instructions.md on every request, and AGENTS.md only when a
+# setting is on, so the Copilot file must carry the rule itself.
 cp "$AGENT_KIT/AGENTS.md" "AGENTS.md"
-cp "$AGENT_KIT/academic-writing-style.md" ".github/copilot-instructions.md"
+{ cat "$AGENT_KIT/PRIME_DIRECTIVE.md"; echo; cat "$AGENT_KIT/academic-writing-style.md"; } \
+  > ".github/copilot-instructions.md"
 
 # --- copy the coding rule files AGENTS.md points at ---
 cp "$AGENT_KIT/RULES_AND_LOGS/R_Rules.md"     "RULES_AND_LOGS/R_Rules.md"
@@ -113,8 +145,8 @@ cp "$AGENT_KIT/templates/README.md" "README.md"
 # AGENTS.md. A project that turns out to involve grant writing appends this file
 # to copilot-instructions.md, or names it in chat. A project that never writes a
 # grant ignores it.
-cp "$AGENT_KIT/templates/copilot-instructions-proposals.md" \
-   ".github/copilot-instructions-proposals.md"
+{ cat "$AGENT_KIT/PRIME_DIRECTIVE.md"; echo; cat "$AGENT_KIT/templates/copilot-instructions-proposals.md"; } \
+  > ".github/copilot-instructions-proposals.md"
 
 # Drivers, control files, and the R starters go inside the analysis subfolder,
 # not the project root.
@@ -129,6 +161,31 @@ cp "$AGENT_KIT/templates/R/001-Environment-settings.R" "R/$ANALYSIS/001-Environm
 # LibreOffice, which is what stops Word reporting flextable output as damaged.
 cp "$AGENT_KIT/templates/R/002-Word-safe-docx.R"       "R/$ANALYSIS/002-Word-safe-docx.R"
 
+# Data helpers. 001-Environment-settings.R sources all three.
+cp "$AGENT_KIT/templates/R/003-Data-paths.R"           "R/$ANALYSIS/003-Data-paths.R"
+cp "$AGENT_KIT/templates/R/004-Save-result.R"          "R/$ANALYSIS/004-Save-result.R"
+cp "$AGENT_KIT/templates/R/005-Data-dictionary.R"      "R/$ANALYSIS/005-Data-dictionary.R"
+cp "$AGENT_KIT/templates/Stata/003-Data-paths.do"      "Stata/$ANALYSIS/003-Data-paths.do"
+
+# The paths file sits outside the project and is never overwritten. A new one
+# has every line commented out, so the project renders before any data exists.
+mkdir -p "$DATA_PATHS_DIR"
+if [[ -e "$PATHS_FILE" ]]; then
+  PATHS_NOTE="Kept the existing data paths file: $PATHS_FILE"
+else
+  cat > "$PATHS_FILE" <<'PATHS'
+# Data locations for this project on this machine. One KEY=path line each.
+# Remove the # from each line and fill in the path. SHARE_DATA may stay empty.
+# Agents never read this file. Keep it out of Dropbox and out of the project.
+# SOURCE=
+# DERIVED=
+# WORK=
+# SHARE_DATA=
+# MPLUS=
+PATHS
+  PATHS_NOTE="Wrote a data paths file to fill in: $PATHS_FILE"
+fi
+
 # REPORTS/ gains a dated copy on every render. archive_reports.R moves the older
 # copies of each report into REPORTS/Archive/ and keeps the newest. Run it with
 # Rscript on any platform; its README explains how it groups the files.
@@ -140,6 +197,8 @@ echo "Copied AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, README.md,"
 echo "RULES_AND_LOGS/R_Rules.md, RULES_AND_LOGS/Mplus_Rules.md,"
 echo "the slide and manuscript templates and R starters into R/$ANALYSIS/,"
 echo "including 002-Word-safe-docx.R, which the manuscript driver sources,"
+echo "the data helpers 003-Data-paths.R, 004-Save-result.R, and"
+echo "005-Data-dictionary.R, and Stata/$ANALYSIS/003-Data-paths.do,"
 echo "REPORTS/archive_reports.R and its README, which move older report copies"
 echo "into REPORTS/Archive/ (run: Rscript REPORTS/archive_reports.R),"
 echo "and reference doc(s):"
@@ -153,14 +212,19 @@ else
   echo "  drop it there. The script globs and does not hardcode names."
 fi
 echo ""
+echo "$PATHS_NOTE"
+echo ""
 echo "Next steps (project specific, by design):"
 echo "  1. Rename R/$ANALYSIS to your analysis name, then set the 'analysis'"
 echo "     line in each Driver.R and each Control.qmd to match."
 echo "  2. Add further analyses as sibling folders under R/ (or Stata/)."
 echo "     RENDER/ and REPORTS/ stay flat and are shared by all of them."
-echo "  3. Put references in REFERENCES/ and run pdf2llm on new PDFs."
-echo "  4. Ask your agent to build bibliography.bib from REFERENCES/."
-echo "  5. Read README.md, then start working."
+echo "  3. Fill in the data paths file above, list the participant ID"
+echo "     variables in DATA_DICTIONARY/ID_VARIABLES.txt, and put data in the"
+echo "     SOURCE location, never in the project."
+echo "  4. Put references in REFERENCES/ and run pdf2llm on new PDFs."
+echo "  5. Ask your agent to build bibliography.bib from REFERENCES/."
+echo "  6. Read README.md, then start working."
 echo ""
 
 # Open in VS Code if the 'code' command is available; otherwise skip quietly.

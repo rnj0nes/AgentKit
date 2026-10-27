@@ -10,3 +10,7 @@ _test_scaffold/
 
 # macOS
 .DS_Store
+
+# Backups written by add_prime_directive.sh and add_word_safe_docx.sh.
+*.bak
+*.bak.*

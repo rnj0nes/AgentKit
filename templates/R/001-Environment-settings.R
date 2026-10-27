@@ -1,7 +1,7 @@
 # =============================================================================
 # R/001-Environment-settings.R
 # Project paths and environment settings.
-# Prereq: source R/000-Libraries.R first. Run from the project root.
+# Prereq: set `analysis` to this folder's name, then source 000-Libraries.R.
 # =============================================================================
 
 # Project root (resolved relative to the .rproj or project root, never absolute)
@@ -12,18 +12,28 @@ path_figures    <- here::here("FIGURES")
 path_md         <- here::here("MD")
 path_references <- here::here("REFERENCES")
 path_r          <- here::here("R")
-path_rdata      <- here::here("R", "RDATA")
 path_reports    <- here::here("REPORTS")
+path_results    <- here::here("RESULTS")
+path_mplus_out  <- here::here("R", "MPLUS_OUTPUT")
 
-# ---- Data paths ----
-# DATA/SOURCE/ holds data as received. Read only; no code writes there.
-# DATA/DERIVED/ holds kept, reusable datasets, listed in its README.md.
-# R/RDATA/ (path_rdata above) holds interim working files.
-path_source     <- here::here("DATA", "SOURCE")
-path_derived    <- here::here("DATA", "DERIVED")
-# Add project-specific data file paths here. Keep them project-relative.
-# Example:
-#   file_data <- here::here("DATA", "SOURCE", "analytic.dta")
+# ---- Data locations ----
+# Participant data lives outside the project. 003-Data-paths.R reads this
+# project's locations from ~/.agentkit/data_paths/<Project>.txt and provides
+# data_path(). 004-Save-result.R provides save_result(), the only way code
+# writes to RESULTS/. 005-Data-dictionary.R keeps DATA_DICTIONARY/ current and
+# reads a data file only when its entry is missing or out of date.
+# Examples:
+#   d <- haven::read_dta(data_path("SOURCE", "analytic.dta"))
+#   saveRDS(d_clean, data_path("WORK", "analytic_clean.rds"))
+#   save_result(broom::tidy(fit), paste0(analysis, "_model1"))
+if (!exists("analysis")) {
+  stop("Set `analysis` to this folder's name before sourcing ",
+       "001-Environment-settings.R.", call. = FALSE)
+}
+source(here::here("R", analysis, "003-Data-paths.R"))
+source(here::here("R", analysis, "004-Save-result.R"))
+source(here::here("R", analysis, "005-Data-dictionary.R"))
+update_data_dictionary()
 
 # ---- Color palette (project branding) ----
 I <- 0.85   # intensity multiplier for RGB channels
@@ -42,8 +52,7 @@ color_navy    <- mk_col(  0,  60, 113, I)
 color_taupe   <- mk_col(183, 176, 156, I)
 
 # ---- Create output directories if missing ----
-# path_source is left out on purpose: code never creates or writes to it.
-for (p in c(path_rdata, path_derived, path_md, path_figures, path_reports)) {
+for (p in c(path_results, path_md, path_figures, path_reports)) {
   dir.create(p, showWarnings = FALSE, recursive = TRUE)
 }
 

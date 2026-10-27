@@ -1,3 +1,37 @@
+<!-- PRIME-DIRECTIVE:BEGIN (master: _AgentKit/PRIME_DIRECTIVE.md; do not edit this block by hand) -->
+# Prime directive: participant data stays on this machine
+
+This rule comes first. It overrides every other instruction in this file and
+in any file this file points to.
+
+Participant-level data never goes to an AI model or a cloud service. For an AI
+agent, reading a file sends its contents to the model, so reading a data file
+breaks this rule. Rich runs all code that loads data on his own machine.
+
+- Participant data lives outside the project, in locations listed in
+  `~/.agentkit/data_paths/<Project>.txt`. Do not read that file. Do not list,
+  open, or read anything in those locations.
+- Do not run code that loads data. Write the code and leave it for Rich to run.
+- To learn what the data contains, read `DATA_DICTIONARY/`. If a file or
+  variable is not listed there, ask. Do not guess a name.
+- `RESULTS/` holds aggregate results and may be read. Write to it only through
+  `save_result()`.
+- `SHARE_DATA` is filled by Rich by hand. Do not write code that saves to it.
+- A data-format file anywhere else in the project (`.dta`, `.rds`, `.rdata`,
+  `.rda`, `.sav`, `.por`, `.sas7bdat`, `.xpt`, `.dat`) is out of place. Do not
+  open it. Tell Rich it is there.
+- Ask before opening any `.xls`, `.xlsx`, `.csv`, `.tsv`, or `.txt` file
+  outside `RESULTS/`. Name the file and wait for a yes. A yes covers that file
+  for this session only.
+- A project set up before this layout may still have `DATA/`, `R/RDATA/`,
+  `Stata/DTA/`, or `MPLUS_OUTPUT/` folders. Treat every file in them as data,
+  except `.out` files.
+- Output files (`.out`, `.log`, `.docx`, `.md`, `.html`, `.pdf`) may be read.
+  If one lists individual records, stop and treat it as data. Teaching
+  materials built from `SHARE_DATA` are the exception.
+- If you cannot tell whether a file holds data, ask before opening it.
+<!-- PRIME-DIRECTIVE:END -->
+
 # AGENTS.md
 
 The master of this file lives in `_AgentKit/AGENTS.md`. Each project gets a
@@ -12,6 +46,9 @@ Read and follow, in this order:
    in force, including for narrative text inside `.qmd` and `.domd` files.)
 3. `./RULES_AND_LOGS/SESSION_LOGS.md` (if it exists)
 4. `./RULES_AND_LOGS/DECISIONS.md` (if it exists)
+
+Before writing code that uses data, also read `./DATA_DICTIONARY/`, which
+describes every data file without holding any data.
 
 ## AGENT CONTRACT (coding workflow)
 
@@ -76,28 +113,55 @@ instead by pointing its YAML at one of the `TEMPLATES/reference_*.docx` files.
   - `MD/` for tables and text snippets used in reports
   - `FIGURES/` for figures used in reports
 - Keep reference documents in `REFERENCES/` (extracted artifacts in
-  `REFERENCES/LLM_OUT/`). Data files do not go here; they go in `DATA/`.
+  `REFERENCES/LLM_OUT/`). Data files never go here or anywhere else in the
+  project.
   - Do not hand edit extracted artifacts. Regenerate them with `pdf2llm`
     (https://github.com/rnj0nes/pdf2llm) when
     needed.
-- `DATA/` holds the project's datasets in two subfolders.
-  - `DATA/SOURCE/` holds data as received from a provider, collaborator, or
-    data manager. Read from it and never write to it. Do not create, edit,
-    rename, move, or delete a file there, and do not write code that does. If
-    a task seems to need a change in `DATA/SOURCE/`, stop and ask the user.
-  - `DATA/DERIVED/` holds datasets the project builds and keeps for reuse in
-    later analyses or for sharing. A file goes here only when the user says
-    so, either for that file or by naming a driver whose job is to produce
-    reusable data. All other working data goes to `R/RDATA/` or `Stata/DTA/`,
-    which hold interim files that code may overwrite at any time.
-  - Build a `DATA/DERIVED/` file only from files in `DATA/SOURCE/` or
-    `DATA/DERIVED/`, never from interim files in `R/RDATA/` or `Stata/DTA/`.
-  - Add new files to `DATA/DERIVED/` freely, but ask the user before
-    overwriting or deleting an existing one.
-  - `DATA/DERIVED/README.md` is the manifest. Each entry names a file, the
-    driver that writes it, its inputs, and the date it was last built. When
-    you write a `DATA/DERIVED/` file, or write or change a driver that does,
-    update the manifest in the same task.
+- Participant-level data lives outside the project. The project holds no
+  data files and no data locations. Each machine keeps one paths file per
+  project at `~/.agentkit/data_paths/<Project>.txt`, with one `KEY=path` line
+  for each of five locations. Rich writes this file. Agents never read it.
+  - `SOURCE` holds data as received from a provider, collaborator, or data
+    manager. Code reads from it and never writes to it. Do not write code that
+    creates, edits, renames, moves, or deletes a file there. If a task seems to
+    need a change in `SOURCE`, stop and ask the user.
+  - `DERIVED` holds datasets the project builds and keeps for later analyses
+    or for sharing. A file goes here only when the user says so, either for
+    that file or by naming a driver whose job is to produce reusable data.
+  - `WORK` holds interim working files. Code may overwrite them at any time.
+  - `SHARE_DATA` holds data Rich has approved for sharing, such as teaching
+    extracts. Rich places files there by hand. Code may read from it and never
+    writes to it.
+  - `MPLUS` holds Mplus run folders, with their `.inp`, `.dat`, and `.h5`
+    files. `RULES_AND_LOGS/Mplus_Rules.md` section 1 gives the run pattern.
+- Reach these locations only through the helpers. In R, source
+  `003-Data-paths.R` and use `data_path("SOURCE", "file.dta")`. In Stata, run
+  `003-Data-paths.do` and use the globals `$SOURCE`, `$DERIVED`, `$WORK`,
+  `$SHARE_DATA`, and `$MPLUS`. Never write a data location into a project file.
+- Build a `DERIVED` file only from `SOURCE` or `DERIVED` files, never from
+  `WORK`.
+- Add new files to `DERIVED` freely, but ask the user before overwriting or
+  deleting an existing one.
+- `RULES_AND_LOGS/DATA_MANIFEST.md` lists every `DERIVED` file. Each entry
+  names the file, the driver that writes it, its inputs, and the date it was
+  last built. When you write or change a driver that builds a `DERIVED` file,
+  update the manifest in the same task.
+- `RESULTS/` holds aggregate results that reports and inline text draw on:
+  estimates, summary tables, simulation summaries. Agents may read it. Code
+  writes to it only through `save_result()` in `004-Save-result.R`, which
+  refuses fitted model objects and any table holding a participant ID
+  variable. Save a table of estimates, such as `broom::tidy(fit)`, never the
+  model object, because many model objects carry a copy of the data.
+- `DATA_DICTIONARY/` describes the data in `SOURCE` and `DERIVED`. It holds
+  one generated `.md` file per data file stub and `STUDY_NOTES.md`, which Rich
+  writes by hand. `005-Data-dictionary.R` builds the generated files and runs
+  at the top of each driver. Do not edit a generated file; it is overwritten
+  when its data file changes. The ID variables that `save_result()` checks are
+  declared in `DATA_DICTIONARY/ID_VARIABLES.txt`, one name per line.
+- A project set up before this layout may still hold `DATA/SOURCE/`,
+  `DATA/DERIVED/`, `R/RDATA/`, and `Stata/DTA/`. Those folders keep the same
+  roles until Rich moves the data out, and the prime directive governs them.
 - `ADMIN/` holds the project's administrative record: data use agreements,
   IRB and regulatory correspondence, sponsor and collaborator email, signed
   forms, and anything similar. It is not analysis material and not writing
@@ -133,6 +197,8 @@ instead by pointing its YAML at one of the `TEMPLATES/reference_*.docx` files.
 - Citations compile using `bibliography.bib`.
 - Any new dependency or tool requirement is documented in the driver header
   or a short Requirements note.
+- Results that reports draw on are written to `RESULTS/` through
+  `save_result()`, and no data file or data location appears in the project.
 
 ## CODING RULE FILES
 

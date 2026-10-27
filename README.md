@@ -14,6 +14,8 @@ _AgentKit/
 ├── academic-writing-style.md        contract: writing standard (becomes .github/copilot-instructions.md)
 ├── AgentKit_overview.md             background, for an agent maintaining the kit itself
 ├── AgentKit_instructions.md         operating rules, for an agent maintaining the kit itself
+├── PRIME_DIRECTIVE.md               the data rule placed at the top of every instruction file
+├── add_prime_directive.sh           inserts or refreshes that rule in instruction files across a folder tree
 ├── VS-Code-workflow.md              day-to-day workflow, long form
 ├── update-existing-projects.md      how to run migrate_project.sh, and what it moves where
 ├── new_project.sh                   scaffolds a new project from the files below
@@ -41,10 +43,15 @@ _AgentKit/
     ├── REPORTS/
     │   ├── archive_reports.R        moves older report copies to REPORTS/Archive/
     │   └── archive_reports_README.md
-    └── R/
-        ├── 000-Libraries.R          installs/loads the R packages every project needs
-        ├── 001-Environment-settings.R
-        └── 002-Word-safe-docx.R      re-saves a rendered .docx through LibreOffice
+    ├── R/
+    │   ├── 000-Libraries.R          installs/loads the R packages every project needs
+    │   ├── 001-Environment-settings.R  project paths; sources 003 to 005
+    │   ├── 002-Word-safe-docx.R     re-saves a rendered .docx through LibreOffice
+    │   ├── 003-Data-paths.R         reads the data locations from the paths file outside the project
+    │   ├── 004-Save-result.R        save_result(), the only way code writes to RESULTS/
+    │   └── 005-Data-dictionary.R    builds DATA_DICTIONARY/ from the data, holding no values
+    └── Stata/
+        └── 003-Data-paths.do        the Stata reader for the same paths file
 ```
 
 ## Project layout (what `new_project.sh` builds)
@@ -63,18 +70,17 @@ project's own `README.md` (`templates/README.md` here, before it is copied).
 │   ├── copilot-instructions.md              copy of academic-writing-style.md
 │   └── copilot-instructions-proposals.md    grant adjunct, named explicitly when needed
 ├── R/
-│   ├── RDATA/                       flat, shared .rds/.RData storage
-│   ├── MPLUS_OUTPUT/                flat, shared Mplus output
+│   ├── MPLUS_OUTPUT/                .out files copied back from Mplus runs
 │   └── Analysis1/                   one folder per analysis; rename this one
 │       ├── 000-Libraries.R
 │       ├── 001-Environment-settings.R
 │       ├── 002-Word-safe-docx.R
+│       ├── 003-Data-paths.R / 004-Save-result.R / 005-Data-dictionary.R
 │       ├── manuscript_Control.qmd / manuscript_Driver.R
 │       └── slides_Control.qmd / slides_Driver.R
 ├── Stata/
-│   ├── DTA/
 │   ├── MPLUS_OUTPUT/
-│   └── Analysis1/                   Stata analysis folder
+│   └── Analysis1/                   Stata analysis folder, with 003-Data-paths.do
 ├── REFERENCES/
 │   └── LLM_OUT/                     pdf2llm output: page-marked text, JSONL, metadata
 ├── RENDER/                          driver output; scratch, emptied on every render
@@ -86,21 +92,25 @@ project's own `README.md` (`templates/README.md` here, before it is copied).
 ├── EXCALIDRAW/
 │   └── figure-1.excalidraw.svg
 ├── ADMIN/                           agreements, IRB/regulatory mail, signed forms
-├── DATA/
-│   ├── SOURCE/                      data as received; agents never write here
-│   └── DERIVED/                     kept, reusable datasets; README.md is the manifest
+├── RESULTS/                         aggregate results, written only by save_result(); agents read it
+├── DATA_DICTIONARY/                 one generated entry per data file, plus ID_VARIABLES.txt and STUDY_NOTES.md
 ├── RULES_AND_LOGS/
 │   ├── R_Rules.md
 │   ├── Mplus_Rules.md
+│   ├── DATA_MANIFEST.md             lists every kept dataset in the DERIVED location
 │   ├── SESSION_LOGS.md              created the first time you say "log this session"
 │   └── DECISIONS.md                 created the first time you say "log this session"
 └── TEMPLATES/
     └── reference_*.docx             one per output type found in _AgentKit/templates/
 ```
 
+The project holds no data. The scaffold also writes `~/.agentkit/data_paths/<ProjectName>.txt`, with every line commented out, for you to fill in with this machine's data locations.
+
 ## Contracts, rules, and logs
 
 The kit separates the rules an agent should know at the beginning of every task from the rules it needs only when a particular method or document type is involved. Loading every rule file at once makes the standing instructions hard to locate, while leaving them implicit asks the agent to invent a convention that should have been decided in advance.
+
+Every instruction file opens with the same prime directive, kept in `PRIME_DIRECTIVE.md`: participant-level data stays on my machine. For an agent, reading a file sends its contents to a model, so the rule forbids reading data, not only uploading it. I do not rely on the rule alone, because no agent follows every instruction every time. The data sits outside the project, where an agent working in the project folder cannot reach it, and the rule covers the agents that run in my own terminal. `add_prime_directive.sh` puts the current text at the top of every instruction file in an existing tree of projects.
 
 `AGENTS.md` is the coding and analysis contract. It establishes that each analysis has one driver and one control file in the same folder; that drivers render first to `RENDER/` and then make dated copies in `REPORTS/`; that R code reaches the project root through `here::here()`; and that requests to "log this session" create a dated account of consequential work. It also requires that claims about a reference document be grounded in extracted text from that document, rather than in what the model may happen to know about the source.
 
@@ -186,7 +196,9 @@ The analysis folders in a scaffolded project are self-contained. `R/<Analysis>/`
 
 `REFERENCES/` is for source material and nothing else. When a PDF is relevant to the analysis or writing, `pdf2llm` creates page-marked text, JSONL, and provenance information under `REFERENCES/LLM_OUT/`; the grounding rules read those files rather than the PDF itself (see [https://github.com/rnj0nes/pdf2llm](https://github.com/rnj0nes/pdf2llm)). `ADMIN/` is deliberately separate. It holds data-use agreements, IRB and regulatory correspondence, sponsor and collaborator email, and signed forms. An agent may read one of those files when asked, but it does not use `ADMIN/` as literature or carry names and confidential details from it into a draft unless the user requests that directly.
 
-`DATA/` holds the datasets, and it separates three kinds of file. `DATA/SOURCE/` holds data exactly as it arrived from a provider or collaborator. Agents read it and never write to it, so the project always keeps an untouched copy of what it received. `DATA/DERIVED/` holds datasets the project builds and keeps, either for later analyses or to share. A file goes there only when the user says so, it is built only from `SOURCE/` or other `DERIVED/` files, and its row in `DATA/DERIVED/README.md` names the driver that rebuilds it. `R/RDATA/` and `Stata/DTA/` hold interim working files that any rerun may replace. For example, a cleaned analytic file that a co-author will receive belongs in `DERIVED/`, while a temporary merge used only within an ongoing analysis belongs in `R/RDATA/`. The driver that builds the kept file must read its inputs from `SOURCE/` or `DERIVED/`, not from that temporary merge.
+Participant data never sits in the project. Each machine keeps one paths file per project at `~/.agentkit/data_paths/<Project>.txt`, outside Dropbox and outside the project, naming five locations. `SOURCE` holds data exactly as it arrived, and code never writes to it. `DERIVED` holds datasets the project builds and keeps, built only from `SOURCE` or other `DERIVED` files, with a row in `RULES_AND_LOGS/DATA_MANIFEST.md` naming the driver that rebuilds each one. `WORK` holds interim files that any rerun may replace. `SHARE_DATA` holds data I have approved for sharing, such as a teaching extract, and only I put files there. `MPLUS` holds Mplus run folders, because a `.dat` file is participant data. Code reaches these locations through `data_path()` in R and globals in Stata, so the same driver runs on a collaborator's machine with a different paths file, whether the data sits on a network drive or a local mirror.
+
+Two folders inside the project let an agent help without seeing data. `RESULTS/` holds aggregate results that reports draw on, and code writes there only through `save_result()`, which refuses fitted model objects and any table holding a participant ID variable. A saved `lm` object carries a copy of its data, so the helper asks for `broom::tidy(fit)` instead. `DATA_DICTIONARY/` describes each data file in `SOURCE` and `DERIVED`: its structure, variable names, types, labels, missing codes, and distributions, with counts under 11 suppressed and no minimum or maximum. It is rebuilt when a data file changes. `ID_VARIABLES.txt` and `STUDY_NOTES.md` in the same folder are written by hand.
 
 `TEMPLATES/` contains the reference documents that pandoc uses for DOCX styles. They are working files, so each project can restyle its own copy to match a journal or sponsor. A reference document built by opening a real manuscript in Word carries the manuscript text and metadata inside the `.docx`, even when the displayed body has been changed. Run `scrub_reference_docs.py` before sharing such a file. Finally, `.here` is an empty root marker for the R `here` package. It is intentionally boring, but it matters: without it, `here::here()` falls back to the working directory and a driver can place every file somewhere other than the project it was meant to run.
 

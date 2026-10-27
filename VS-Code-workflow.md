@@ -61,16 +61,16 @@ exchange for each project being self-contained and portable.
 ├── .here                         (root marker for here::here(); do not delete)
 ├── bibliography.bib <ask your agent to generate it from contents in references folder>
 ├── .github
-│   └── copilot-instructions.md   (copy of _AgentKit/academic-writing-style.md)
+│   └── copilot-instructions.md   (prime directive + copy of _AgentKit/academic-writing-style.md)
 ├── ADMIN
 │   ├── <data use agreements>
 │   ├── <IRB and regulatory correspondence>
 │   ├── <sponsor and collaborator email>
 │   └── <signed forms, approvals, amendments>
-├── DATA
-│   ├── SOURCE                    (data as received; agents read only)
-│   └── DERIVED                   (kept, reusable datasets)
-│       └── README.md             (manifest: file, driver, inputs, date)
+├── DATA_DICTIONARY               (describes the data; holds none)
+│   ├── SOURCE__<stub>.md         (generated; one per data file stub)
+│   ├── ID_VARIABLES.txt          (written by hand)
+│   └── STUDY_NOTES.md            (written by hand)
 ├── EXCALIDRAW
 │   └── figure-1.excalidraw.svg
 ├── FIGURES
@@ -87,12 +87,14 @@ exchange for each project being self-contained and portable.
 │   │   ├── slides_Control.qmd
 │   │   ├── 000-Libraries.R       (this analysis's own copy)
 │   │   ├── 001-Environment-settings.R
+│   │   ├── 003-Data-paths.R
+│   │   ├── 004-Save-result.R
+│   │   ├── 005-Data-dictionary.R
 │   │   ├── 030-call-data.R
 │   │   ├── 040-Table-1.R
 │   │   └── 031-content-slides.qmd
 │   ├── Project2                  (same shape, independent)
-│   ├── RDATA
-│   └── MPLUS_OUTPUT
+│   └── MPLUS_OUTPUT              (.out files copied back from Mplus runs)
 │       ├── <ANALYSIS1>
 │       └── <ANALYSISp>
 ├── REFERENCES                    (source material only)
@@ -104,6 +106,7 @@ exchange for each project being self-contained and portable.
 ├── RULES_AND_LOGS
 │   ├── R_Rules.md <copy of _AgentKit/RULES_AND_LOGS/R_Rules.md>
 │   ├── Mplus_Rules.md <copy of _AgentKit/RULES_AND_LOGS/Mplus_Rules.md>
+│   ├── DATA_MANIFEST.md          (kept datasets in DERIVED: file, driver, inputs, date)
 │   ├── SESSION_LOGS.md <created on first "log this session">
 │   └── DECISIONS.md <created on first "log this session">
 ├── TEMPLATES                     (this project's pandoc reference docs)
@@ -279,26 +282,38 @@ does not create the image and Quarto fails rather than warns on a missing
 background. To use one, drop an image at `FIGURES/watermark.png` and uncomment
 the four `title-slide-attributes` lines.
 
-### 1.5 DATA
+### 1.5 Data, results, and the data dictionary
 
-`DATA/` holds the project's datasets, split by what may happen to them.
-`DATA/SOURCE/` holds data exactly as it arrived from a provider, collaborator,
-or data manager. Agents read it and never write to it, and no project code
-writes there either. That rule keeps an untouched copy of what the project
-received, so any result can be traced back to it.
+Participant data never sits in the project. Each machine keeps one paths file
+per project at `~/.agentkit/data_paths/<Project>.txt`, outside Dropbox and
+outside the project. It names five locations. `SOURCE` holds data exactly as
+received, and no code writes there. `DERIVED` holds datasets the project builds
+and keeps, built only from `SOURCE` or `DERIVED` files, each listed in
+`RULES_AND_LOGS/DATA_MANIFEST.md`. `WORK` holds interim files that any rerun
+may replace. `SHARE_DATA` holds data you have approved for sharing, and only
+you put files there. `MPLUS` holds Mplus run folders, because their `.dat`
+files are participant data. Code reaches these locations through `data_path()`
+in R and the globals `$SOURCE`, `$DERIVED`, `$WORK`, `$SHARE_DATA`, and `$MPLUS`
+in Stata. For example, `haven::read_dta(data_path("SOURCE", "hcap.dta"))` runs
+on a collaborator's machine with their own paths file. An agent working in the
+project folder cannot reach the data at all.
 
-`DATA/DERIVED/` holds datasets the project builds and keeps, for later
-analyses or to share. A file goes there only when you say so. It is built only
-from `SOURCE/` or other `DERIVED/` files, and its row in
-`DATA/DERIVED/README.md` names the driver that rebuilds it, its inputs, and the
-date it was last built. An agent may add files there but asks before replacing
-or deleting one.
+`RESULTS/` sits inside the project and holds aggregate results: estimates,
+summary tables, simulation summaries. Agents read it, so code writes to it only
+through `save_result()`, which refuses fitted model objects and any table
+holding a participant ID variable. A saved `lm` object carries a copy of its
+data, which is why the helper asks for `broom::tidy(fit)` instead. Report text
+pulls each number from these files.
 
-`R/RDATA/` and `Stata/DTA/` hold interim working files that any rerun may
-replace. For example, a cleaned analytic file sent to a co-author as `.dta`
-and `.sav` belongs in `DERIVED/`, while a temporary merge used only within an
-ongoing analysis belongs in `R/RDATA/`. The driver that builds the kept file
-must read its inputs from `SOURCE/` or `DERIVED/`, not from that temporary merge.
+`DATA_DICTIONARY/` tells an agent what the data holds without holding any.
+`005-Data-dictionary.R` runs each time `001-Environment-settings.R` is sourced.
+It writes one entry per data file stub in `SOURCE` and `DERIVED`, covering
+structure, variable names, types, labels, formats, missing codes, and
+distributions, with counts under 11 suppressed and no minimum or maximum. It
+reads a data file only when its entry is missing or the file has changed. You
+write two files there by hand: `ID_VARIABLES.txt`, which names the participant
+ID variables, and `STUDY_NOTES.md`, which holds design facts no script can
+find, such as which variables are outcomes.
 
 ### 1.6 ADMIN
 

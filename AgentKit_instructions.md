@@ -1,3 +1,37 @@
+<!-- PRIME-DIRECTIVE:BEGIN (master: _AgentKit/PRIME_DIRECTIVE.md; do not edit this block by hand) -->
+# Prime directive: participant data stays on this machine
+
+This rule comes first. It overrides every other instruction in this file and
+in any file this file points to.
+
+Participant-level data never goes to an AI model or a cloud service. For an AI
+agent, reading a file sends its contents to the model, so reading a data file
+breaks this rule. Rich runs all code that loads data on his own machine.
+
+- Participant data lives outside the project, in locations listed in
+  `~/.agentkit/data_paths/<Project>.txt`. Do not read that file. Do not list,
+  open, or read anything in those locations.
+- Do not run code that loads data. Write the code and leave it for Rich to run.
+- To learn what the data contains, read `DATA_DICTIONARY/`. If a file or
+  variable is not listed there, ask. Do not guess a name.
+- `RESULTS/` holds aggregate results and may be read. Write to it only through
+  `save_result()`.
+- `SHARE_DATA` is filled by Rich by hand. Do not write code that saves to it.
+- A data-format file anywhere else in the project (`.dta`, `.rds`, `.rdata`,
+  `.rda`, `.sav`, `.por`, `.sas7bdat`, `.xpt`, `.dat`) is out of place. Do not
+  open it. Tell Rich it is there.
+- Ask before opening any `.xls`, `.xlsx`, `.csv`, `.tsv`, or `.txt` file
+  outside `RESULTS/`. Name the file and wait for a yes. A yes covers that file
+  for this session only.
+- A project set up before this layout may still have `DATA/`, `R/RDATA/`,
+  `Stata/DTA/`, or `MPLUS_OUTPUT/` folders. Treat every file in them as data,
+  except `.out` files.
+- Output files (`.out`, `.log`, `.docx`, `.md`, `.html`, `.pdf`) may be read.
+  If one lists individual records, stop and treat it as data. Teaching
+  materials built from `SHARE_DATA` are the exception.
+- If you cannot tell whether a file holds data, ask before opening it.
+<!-- PRIME-DIRECTIVE:END -->
+
 # AgentKit: Instructions
 
 Read `AgentKit_overview.md` in this same folder first if you have not
@@ -16,6 +50,17 @@ workspace before continuing.
 
 ## Where things live
 
+- `_AgentKit/PRIME_DIRECTIVE.md`: the single master for the data rule that
+  opens every instruction file, between `PRIME-DIRECTIVE:BEGIN` and
+  `PRIME-DIRECTIVE:END` markers. `AGENTS.md` and `templates/CLAUDE.md` carry it
+  as written. `new_project.sh` prepends it to the two Copilot files when it
+  generates them, so `academic-writing-style.md` and the grant skill stay free
+  of it.
+- `_AgentKit/add_prime_directive.sh`: finds instruction files under a folder
+  and inserts the current directive at the top of each, or replaces the block
+  between the markers if one is there. It lists what it would change unless
+  given `--apply`, backs up each file it changes to `<name>.bak`, and places
+  the block after YAML frontmatter when a file has one.
 - `_AgentKit/AGENTS.md`: the coding and analysis contract.
 - `_AgentKit/RULES_AND_LOGS/R_Rules.md` and `_AgentKit/RULES_AND_LOGS/Mplus_Rules.md`:
   coding rule files copied into every project's `RULES_AND_LOGS/`. `AGENTS.md`
@@ -71,6 +116,16 @@ workspace before continuing.
   project's `.github/`. Regenerate it from the skill when that skill changes.
 - `_AgentKit/templates/`: starter files copied into each new project (slide
   deck, manuscript, R starters, `CLAUDE.md`, project `README.md`).
+- `_AgentKit/templates/R/003-Data-paths.R`, `004-Save-result.R`, and
+  `005-Data-dictionary.R`, with `templates/Stata/003-Data-paths.do`: the data
+  helpers. Participant data lives outside each project, in locations named in
+  `~/.agentkit/data_paths/<Project>.txt`. `003` reads that file and provides
+  `data_path()`. `004` provides `save_result()`, the only way code writes to
+  `RESULTS/`, and refuses model objects and tables holding a participant ID
+  variable. `005` builds `DATA_DICTIONARY/` with structure and suppressed
+  distributions, never values. `001-Environment-settings.R` sources all three.
+  The R files were tested on synthetic data in a scratch folder. The Stata file
+  has not been run.
 - `_AgentKit/templates/R/002-Word-safe-docx.R`: re-saves a rendered DOCX
   through LibreOffice. Word reports Quarto's DOCX output as damaged whenever
   the document holds flextable tables, and opens the recovered copy under the
@@ -123,6 +178,11 @@ no em dashes, minimal formatting, one claim per paragraph. This applies to
 edits made to these files themselves, not only to the prose they describe.
 
 ## Common tasks
+
+Change the prime directive: edit `PRIME_DIRECTIVE.md`, then copy its block into
+`AGENTS.md` and `templates/CLAUDE.md` by running `add_prime_directive.sh --apply`
+on `_AgentKit`. Existing projects pick up the new text the same way, by running
+the script on the folder that holds them.
 
 Add a new reference doc type: create `reference_<type>.docx` in
 `_AgentKit/templates/`. No other file needs to change; `new_project.sh` globs for

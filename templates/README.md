@@ -10,6 +10,10 @@ Read `CLAUDE.md` and `AGENTS.md` before starting. They tell any agent how to
 behave in this project. `.github/copilot-instructions.md` holds your writing
 style and is always in force.
 
+Participant data never sits in this project. It lives in the locations named in
+`~/.agentkit/data_paths/<Project>.txt` on each machine, and every instruction
+file opens with a prime directive that forbids agents to read it.
+
 ## What is where
 
 - `AGENTS.md`: the coding and analysis contract.
@@ -22,8 +26,10 @@ style and is always in force.
   above, which they do not read automatically the way VS Code Copilot does.
 - `R/<Analysis>/`: one folder per analysis, holding its driver, its control
   file, its child `.qmd` files, and its own copies of the R starters
-  (`000-Libraries.R` and `001-Environment-settings.R`, which load first, and
-  `002-Word-safe-docx.R`, which the manuscript driver sources at the end). Add
+  (`000-Libraries.R` and `001-Environment-settings.R`, which load first,
+  `002-Word-safe-docx.R`, which the manuscript driver sources at the end, and
+  the data helpers `003-Data-paths.R`, `004-Save-result.R`, and
+  `005-Data-dictionary.R`, which `001-Environment-settings.R` sources). Add
   a second analysis as a sibling folder. `Stata/<Analysis>/` mirrors this.
 - `TEMPLATES/`: this project's pandoc reference docs, one per output type.
   They are working files, so restyle them in Word to suit the journal or
@@ -43,17 +49,24 @@ style and is always in force.
   in `REFERENCES/LLM_OUT/` after you run `pdf2llm`.
 - `RULES_AND_LOGS/`: `R_Rules.md` covers R and Quarto conventions and
   `Mplus_Rules.md` covers Mplus, so read whichever the task calls for before
-  writing code. `SESSION_LOGS.md` and `DECISIONS.md` appear here the first time
+  writing code. `DATA_MANIFEST.md` lists every kept dataset in the `DERIVED`
+  location. `SESSION_LOGS.md` and `DECISIONS.md` appear here the first time
   you say "log this session".
 - `MD/`, `FIGURES/`, `EXCALIDRAW/`: generated tables, figures, and diagrams,
   flat and shared across analyses.
-- `DATA/SOURCE/`: data as you received it. Your agent reads these files and
-  never changes them, so you always keep an untouched copy.
-- `DATA/DERIVED/`: datasets the project builds and keeps, for later analyses
-  or to share. A file goes here only when you say so, and
-  `DATA/DERIVED/README.md` records which driver rebuilds it and from what.
-  Interim working files go in `R/RDATA/` or `Stata/DTA/` instead, where a rerun
-  may replace them.
+- Data: not in this folder. The paths file names five locations outside the
+  project. `SOURCE` holds data as you received it, and no code writes there.
+  `DERIVED` holds datasets the project builds and keeps. `WORK` holds interim
+  files. `SHARE_DATA` holds data you have approved for sharing, placed there by
+  hand. `MPLUS` holds Mplus runs. Code reaches them with `data_path()` in R and
+  globals such as `$SOURCE` in Stata.
+- `RESULTS/`: aggregate results that reports draw on. Your agent may read it.
+  Code writes here only through `save_result()`, which refuses model objects
+  and tables holding a participant ID variable.
+- `DATA_DICTIONARY/`: a description of each data file, built from the data
+  without copying any values. List your participant ID variables in
+  `ID_VARIABLES.txt` and write design notes in `STUDY_NOTES.md`. The other files
+  are rebuilt when the data changes, so do not edit them.
 - `ADMIN/`: the project's administrative record. Data use agreements, IRB and
   regulatory correspondence, sponsor and collaborator email, signed forms. Your
   agent will read a file here if you point it at one, but it will not use this
@@ -72,7 +85,9 @@ changes and you want the change here, copy it in by hand.
 
 1. Rename `R/Analysis1/` to your analysis name, then set the `analysis` line at
    the top of each `Driver.R` and each `Control.qmd` in that folder to match.
-2. Put the data you received in `DATA/SOURCE/`. Put your source PDFs in
+2. Fill in `~/.agentkit/data_paths/<Project>.txt` with this machine's data
+   locations, put the data you received in the `SOURCE` location, and list the
+   participant ID variables in `DATA_DICTIONARY/ID_VARIABLES.txt`. Put your source PDFs in
    `REFERENCES/`, give them short names such as
    `Jones-2003.pdf`, then run `pdf2llm` on them so the extracted text lands in
    `REFERENCES/LLM_OUT/`. The tool is at https://github.com/rnj0nes/pdf2llm,
@@ -144,6 +159,9 @@ https://www.libreoffice.org/download/
 
 Put analysis code in your analysis folder, following the numbered convention
 (`000-Libraries.R`, `001-Environment-settings.R`, then your analysis steps).
+Read data with `data_path()`, write interim files to `data_path("WORK", ...)`,
+and save the numbers a report cites with `save_result()`. Your agent writes
+this code from `DATA_DICTIONARY/` and leaves it for you to run.
 Write tables to `MD/` and figures to `FIGURES/` with stable filenames, then
 refer to them from the manuscript control file. Because those folders are shared
 by every analysis, use names that will not collide. The definition of done for a
